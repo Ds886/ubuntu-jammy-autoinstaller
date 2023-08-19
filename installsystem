@@ -217,7 +217,7 @@ CustomDisableESM()
     then
         PATH_DISABLED_APT_ESM="$HOME/.local/disabled-esm"
         mkdir -p "${PATH_DISABLED_APT_ESM}"
-        mv "/etc/apt/apt.conf.d/20apt-esm-hook.conf" "${PATH_DISABLED_APT_ESM}/"
+        sudo mv "/etc/apt/apt.conf.d/20apt-esm-hook.conf" "${PATH_DISABLED_APT_ESM}/"
     fi
 }
 
