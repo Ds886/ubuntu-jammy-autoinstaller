@@ -1,9 +1,25 @@
 #!/bin/sh
 set -eu
 
+LogTrace()
+{
+    DATE="$(date)"
+    MSG="${1}"
+
+    echo "${DATE} - TRACE - ${MSG}"
+}
+
+LogError()
+{
+    DATE="$(date)"
+    MSG="${1}"
+
+    echo "${DATE} - ERROR- ${MSG}"
+}
+
 if [ -z "$(command -v sudo)" ]
 then
-    echo "Script must run as root with sudo"
+    LogError "Script must run as root with sudo"
     exit 1
 fi
 
@@ -91,10 +107,10 @@ TriggerAPT()
         sudo apt update && sudo apt-get  install -y software-properties-common
     fi
 
-    echo "Updating ubuntu and installing deps"
+    LogTrace "Updating ubuntu and installing deps"
     if [ -n "${PPA}" ]
     then
-        echo "  Adding ppa: ${PPA}"
+        LogTrace "  Adding ppa: ${PPA}"
         # shellcheck disable=SC2086
         set -- ${PPA}
         for CURR_PPA do
@@ -102,15 +118,15 @@ TriggerAPT()
             shift
         done
     fi
-    echo "Updating apt cachce"
+    LogTrace "Updating apt cachce"
     "${SUDO}" apt update
 
 
-    echo "Upgrading packages"
+    LogTrace "Upgrading packages"
     "${SUDO}" apt upgrade -y
     if [ -n "${SYSTEM_DEPS}" ]
     then
-        echo "Installing with apt: ${SYSTEM_DEPS}"
+        LogTrace "Installing with apt: ${SYSTEM_DEPS}"
         # shellcheck disable=SC2086
         "${SUDO}" apt-get install -y ${SYSTEM_DEPS}
     fi
@@ -170,23 +186,23 @@ setBash() {
 
     if [ "${BASH_SETUP_VERSION_CURR}" != "${BASH_SETUP_VERISON}" ]
     then
-        echo "Backing up old version"
+        LogTrace "Backing up old version"
         cp  "${HOME}/.bashrc" "${BASH_SETUP_BACKUP_ROOT}"
         cp  -r "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP_LOCAL}"
         cp  -r "${BASH_SETUP_CONFIG_DIR}" "${BASH_SETUP_BACKUP_CONFIG}"
 
-        echo "Creating new config folder"
+        LogTrace "Creating new config folder"
         mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}"
         mkdir -p "${BASH_SETUP_CONFIG_DIR}"
 
-        echo "Creating file ${BASH_SETUP_CONFIG_DIR}"
+        LogTrace "Creating file ${BASH_SETUP_CONFIG_DIR}"
         (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
         (echo "${BASH_SETUP_FILE_11_PATHS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
         (echo "${BASH_SETUP_FILE_13_ALIAS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
         (echo "${BASH_SETUP_FILE_15_COLORS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
         (echo "${BASH_SETUP_FILE_40_CARGO}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
 
-        echo "Overriding main .bashrc"
+        LogTrace "Overriding main .bashrc"
         (echo "${BASH_SETUP_FILE_ROOT}"|gunzip -c|base64 -d) > "${HOME}/.bashrc"
     fi
     echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_LOCAL_DIR}/version}"
@@ -212,7 +228,7 @@ CustomRust()
     RUST_CURR_VERSION=$(rustc --version|awk '{print $2}')
     if [ -z "${RUSTUP}" ]
     then
-        echo "Installing rust"
+        LogTrace "Installing rust"
         TEMP_RUSTUP="${PATH_TEMP}/rustup"
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "${TEMP_RUSTUP}"
         chmod +x "${TEMP_RUSTUP}"
@@ -221,7 +237,7 @@ CustomRust()
     else
         if [ "${RUST_CURR_VERSION}" != "${RUST_VERSION}" ]
         then
-            echo "Updating rust"
+            LogTrace "Updating rust"
 
             rustup update
         fi
@@ -299,7 +315,7 @@ CustomGo()
     fi
     if [ -n "${INSTALL_GO}" ]
     then
-        echo "Installing go"
+        LogTrace "Installing go"
         curl -L "${GO_URL_FULL}" -o "${PATH_TEMP}/${GO_URL_FILE}"
         rm -rf "${PATH_LOCAL_BIN}/go"
         tar -C "${PATH_LOCAL_BIN}" -xzf "${PATH_TEMP}/${GO_URL_FILE}"
@@ -319,7 +335,7 @@ CustomTidal()
 
     if [ -z "${TIDAL}" ] && [ "${TIDAL_VERSION}" != "${TIDAL_VERSION_CURR}" ]
     then
-        echo "Installing Tidal-hifi"
+        LogTrace "Installing Tidal-hifi"
         curl -L "${TIDAL_URL_FULL}" -o "${PATH_TEMP}/${TIDAL_URL_FILE}"
         sudo apt-get install -y "${PATH_TEMP}/${TIDAL_URL_FILE}"
     fi
@@ -342,7 +358,7 @@ CustomLutris()
 
     if [ -z "${LUTRIS}" ] && [ "${LUTRIS_CURR_VERSION}" != "${LUTRIS_VERSION_TEMPLATE}" ]
     then
-        echo "Installing Lutris"
+        LogTrace "Installing Lutris"
         curl -L "${LUTRIS_URL_FULL}" -o "${PATH_TEMP}/${LUTRIS_URL_FILE}"
         sudo apt-get install -y "${PATH_TEMP}/${LUTRIS_URL_FILE}"
     fi
@@ -365,7 +381,7 @@ CustomTerraform()
     if [ -z "${TERRAFORM}" ] && [ "${TERRAFORM_VERSION_CURR}" != "${TERRAFORM_VERSION_TEMPLATE}"  ]
     then
         set -x
-        echo "Installing Terraform"
+        LogTrace "Installing Terraform"
         curl -L "${TERRAFORM_URL_FULL}" -o "${PATH_TEMP}/${TERRAFORM_URL_FILE}"
         rm  -f "${PATH_LOCAL_BIN}/terraform"
         PREV_FOLDER="${PWD}"
@@ -390,7 +406,7 @@ CustomAWS()
     AWSCLI_URL_FULL="${AWSCLI_URL_PATH}${AWSCLI_URL_FILE}"
     if [ -z "${AWSCLI}" ]
     then
-        echo "Installing AWS cli"
+        LogTrace "Installing AWS cli"
         curl -L "${AWSCLI_URL_FULL}" -o "${PATH_TEMP}/${AWSCLI_URL_FILE}"
         PREV_FOLDER="${PWD}"
         cd "${PATH_TEMP}" || (echo "${PATH_TEMP} doesnt exist" && exit 1)
@@ -428,7 +444,6 @@ AddAptDep "curl"
 AddAptDep "unzip"
 
 # Multimedia
-CustomTidal
 
 # Programming
 AddAptDep "hx" "helix" "ppa:maveonair/helix-editor"
@@ -439,12 +454,6 @@ AddAptDep "gnat" "gprbuild gnat"
 AddAptDep "shellcheck"
 AddAptDep "ndisasm" "nasm"
 AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library frotz"
-CustomGo
-CustomRust
-CustomNode
-CustomBashLSP
-CustomTerraform
-CustomAWS
 
 # Utilities
 AddAptDep "keepassxc"
@@ -456,21 +465,30 @@ AddFlatpakDep "net.pcsx2.PCSX2"
 AddFlatpakDep "com.valvesoftware.Steam"
 AddFlatpakDep "com.dosbox_x.DOSBox-X"
 AddSnapDep "discord" "discord"
-CustomLutris
 
 
-
-
-echo "Installing:"
-echo " ppa: ${PPA}"
-echo " apt: ${SYSTEM_DEPS}"
-echo "----"
-echo " snap: ${SNAP_DEPS}"
-echo "----"
-echo " flatpak: ${FLATPAK_DEPS}"
+LogTrace "Installing:"
+LogTrace " ppa: ${PPA}"
+LogTrace " apt: ${SYSTEM_DEPS}"
+LogTrace "----"
+LogTrace " snap: ${SNAP_DEPS}"
+LogTrace "----"
+LogTrace " flatpak: ${FLATPAK_DEPS}"
 
 
 TriggerAPT
 TriggerFlatPak
 TriggerSnap
 
+# Customs
+## Programming
+CustomGo
+CustomRust
+CustomNode
+CustomBashLSP
+CustomTerraform
+CustomAWS
+CustomLutris
+
+## Multimedia
+CustomTidal
