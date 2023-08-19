@@ -367,13 +367,22 @@ CustomLutris()
 
 CustomTerraform()
 {
-    TERRAFORM=$(command -v terraform 2>&1||echo "")
+    set +e
+    TERRAFORM=$(command -v terraform)
+    set -e
     PATH_TERRAFORM="${PATH_LOCAL_BIN}"
     TERRAFORM_VERSION=1.5.5
     TERRAFORM_URL_PATH="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/"
     TERRAFORM_URL_FILE="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
     TERRAFORM_URL_FULL="${TERRAFORM_URL_PATH}${TERRAFORM_URL_FILE}"
-    TERRAFORM_VERSION_CURR=$(terraform --version)
+    TERRAFORM_VERSION_CURR=
+    if [ -n "${TERRAFORM}" ]
+    then
+        TERRAFORM_VERSION_CURR=$(terraform --version)
+    else
+        TERRAFORM_VERSION_CURR="null"
+    fi
+
     TERRAFORM_VERSION_TEMPLATE="Terraform v${TERRAFORM_VERSION} on linux_amd64"
 
     if [ -z "${TERRAFORM}" ] && [ "${TERRAFORM_VERSION_CURR}" != "${TERRAFORM_VERSION_TEMPLATE}"  ]
