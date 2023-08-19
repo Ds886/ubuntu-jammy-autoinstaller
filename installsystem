@@ -292,9 +292,7 @@ CustomBashLSP()
 
 CustomGo()
 {
-    # shellcheck disable=SC2034
     INSTALL_GO=
-    PATH_GO="${PATH_LOCAL_BIN}"
     set +e
     GO="$(command -v go)"
     set -e
@@ -369,10 +367,7 @@ CustomLutris()
 
 CustomTerraform()
 {
-    # shellcheck disable=SC2034
-    set +e
-    TERRAFORM=$(command -v terraform)
-    set -e
+    TERRAFORM=$(command -v terraform 2>&1||echo "")
     PATH_TERRAFORM="${PATH_LOCAL_BIN}"
     TERRAFORM_VERSION=1.5.5
     TERRAFORM_URL_PATH="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/"
