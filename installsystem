@@ -207,7 +207,7 @@ setBash() {
         LogTrace "Overriding main .bashrc"
         (echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c) > "${HOME}/.bashrc"
     fi
-    echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_LOCAL_DIR}/version}"
+    echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_VERSION_FILE}"
 
 }
 
