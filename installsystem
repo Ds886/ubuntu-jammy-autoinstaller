@@ -386,7 +386,10 @@ CustomDisableESM
 AddAptDep "unzip" "unzip"
 AddAptDep "curl" "curl"
 
-TriggerAPT
+if [ -n "$SYSTEM_DEPS" ]
+then
+    TriggerAPT
+fi
 
 # System
 
