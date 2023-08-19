@@ -270,6 +270,7 @@ CustomBashLSP()
 CustomGo()
 {
     # shellcheck disable=SC2034
+    INSTALL_GO=
     PATH_GO="${PATH_LOCAL_BIN}"
     set +e
     GO="$(command -v go)"
@@ -283,7 +284,16 @@ CustomGo()
         GO_VERSION_CURR=$(go version)
         GO_VERSION_TEMPLATE="go version go${GO_VERSION_CURR} linux/amd64"
     fi
-    if [ -z "${GO}" ] && [ "${GO_VERSION_TEMPLATE}" != "${GO_VERSION_CURR}" ]
+    if [ -z "${GO}" ]
+    then
+        INSTALL_GO="true"
+    else
+         if [ "${GO_VERSION_TEMPLATE}" != "${GO_VERSION_CURR}" ]
+         then
+            INSTALL_GO="true"
+         fi
+    fi
+    if [ -n "${INSTALL_GO}" ]
     then
         echo "Installing go"
         curl -L "${GO_URL_FULL}" -o "${PATH_TEMP}/${GO_URL_FILE}"
