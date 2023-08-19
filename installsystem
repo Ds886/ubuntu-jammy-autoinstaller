@@ -205,9 +205,10 @@ setBash() {
         (echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
 
         LogTrace "Overriding main .bashrc"
-        (echo "${BASH_SETUP_FILE_ROOT}"|gunzip -c|base64 -d) > "${HOME}/.bashrc"
+        (echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c) > "${HOME}/.bashrc"
     fi
     echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_LOCAL_DIR}/version}"
+
 }
 
 CustomDisableESM()
