@@ -1,0 +1,437 @@
+#!/bin/sh
+
+if [ -z "$(command -v sudo)" ]
+then
+    echo "Script must run as root with sudo"
+    exit 1
+fi
+
+# PATHS
+PATH_LOCAL_BIN="$HOME/.local/bin"
+PATH_TEMP="$(mktemp --suffix "-install-system" -d)"
+PATH_FLATPAK="/var/lib/flatpak/app"
+
+SYSTEM_DEPS=
+SNAP_DEPS=
+FLATPAK_DEPS=
+PPA=
+
+BASH_SETUP_CONFIG_DIR="${HOME}/.config/bash"
+BASH_SETUP_LOCAL_DIR="${HOME}/.local/opt/bash"
+BASH_SETUP_BACKUP="${HOME}/.local/opt/bash/bkupbash"
+BASH_SETUP_VERSION_FILE="${BASH_SETUP_LOCAL_DIR}"
+BASH_SETUP_VERISON=1.0
+
+# Prereq
+SUDO=$(command -v sudo)
+
+AddAptDep()
+{
+    ADD_DEP_EXECUTABLE="$1"
+    ADD_DEP_APT="${2}"
+    ADD_DEP_PPA="${3}"
+    ADD_DEP_EXEC_TEST=
+
+    if [ -z "${ADD_DEP_APT}" ]
+    then
+        ADD_DEP_APT="${ADD_DEP_EXECUTABLE}"
+    fi
+
+    set +e 
+    ADD_DEP_EXEC_TEST="$(command -v "${ADD_DEP_EXECUTABLE}")"
+    set -e
+
+    if [ -z "$ADD_DEP_EXEC_TEST" ]
+    then
+        if [ -n "$ADD_DEP_PPA" ]
+        then
+            PPA="${PPA} ${ADD_DEP_PPA}"
+        fi
+        SYSTEM_DEPS="$SYSTEM_DEPS ${ADD_DEP_APT}"
+    fi
+}
+
+AddFlatpakDep()
+{
+    ADD_DEP_FLATPAK_NAME="${1}"
+    if [ ! -e "${PATH_FLATPAK}/${ADD_DEP_FLATPAK_NAME}" ]
+    then
+        FLATPAK_DEPS="${FLATPAK_DEPS} ${ADD_DEP_FLATPAK_NAME}"
+    fi
+}
+
+AddSnapDep()
+{
+    ADD_DEP_SNAP_EXECUTABLE="$1"
+    ADD_DEP_SNAP="${2}"
+
+    set +e 
+    ADD_DEP_SNAP_EXEC_TEST="$(command -v "${ADD_DEP_SNAP_EXECUTABLE}")"
+    set -e
+
+    if [ -z "$ADD_DEP_SNAP_EXEC_TEST" ]
+    then
+        SNAP_DEPS="$SNAP_DEPS ${ADD_DEP_SNAP}"
+    fi
+}
+
+TriggerAPT()
+{
+    set +e
+    ADD_REPO="$(command -v apt-add-repository)"
+    set -e
+
+    if [ -z "${ADD_REPO}" ]
+    then
+        sudo apt update && sudo apt-get  install -y software-properties-common
+    fi
+
+    echo "Updating ubuntu and installing deps"
+    if [ -n "${PPA}" ]
+    then
+        echo "  Adding ppa: ${PPA}"
+        # shellcheck disable=SC2086
+        set -- ${PPA}
+        for CURR_PPA do
+            "${SUDO}" add-apt-repository -y "${CURR_PPA}"
+            shift
+        done
+    fi
+    echo "Updating apt cachce"
+    "${SUDO}" apt update
+
+
+    echo "Upgrading packages"
+    "${SUDO}" apt upgrade -y
+    if [ -n "${SYSTEM_DEPS}" ]
+    then
+        echo "Installing with apt: ${SYSTEM_DEPS}"
+        # shellcheck disable=SC2086
+        "${SUDO}" apt-get install -y ${SYSTEM_DEPS}
+    fi
+}
+
+TriggerFlatPak()
+{
+    set +e 
+    FLATPAK="$(command -v flatpak)"
+    set -e
+    if [ -z "${FLATPAK}" ]
+    then
+        "${SUDO}" apt update && "${SUDO}" apt-get  install -y flatpak
+        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    fi
+
+  
+    # shellcheck disable=SC2086
+    set -- ${FLATPAK_DEPS}
+    for item
+    do
+        flatpak install -y flathub "$item"
+        shift
+    done
+}
+
+TriggerSnap()
+{
+    if [ -n "${SNAP_DEPS}" ]
+    then
+        # shellcheck disable=SC2086
+        "${SUDO}" snap install ${SNAP_DEPS}
+    fi
+}
+
+setBash() {
+    mkdir -p "${PATH_LOCAL_BIN}"
+    BASH_SETUP_BACKUP_CURR_DIR=${BASH_SETUP_BACKUP}/$(date "+%F-%T")
+    BASH_SETUP_BACKUP_ROOT=${BASH_SETUP_BACKUP_CURR_DIR}/.bashrc
+    BASH_SETUP_BACKUP_LOCAL=${BASH_SETUP_BACKUP_CURR_DIR}/local
+    BASH_SETUP_BACKUP_CONFIG=${BASH_SETUP_BACKUP_CURR_DIR}/config
+
+
+    # gzip -c < file|base64 -w0
+    BASH_SETUP_FILE_ROOT="H4sIAEok1WQAAwtwDPGId3IM9oh39vdz83S3VVLx8Pd11ddLzs9Ly0zXT0oszlDi4kJSEe/m6eMaDFSnkZaZl6KgpFIdgGZGrZKCbkllQapCmkJNcX5RiSbQgLT8IoXMktRchcw8BZVqDONqFbhS8rkUFIrzS4uSUxVUQEqBInmpXEAAAGZylTWkAAAA"
+    BASH_SETUP_FILE_10_UBUNTUDEFAULTS="H4sIAMtR1WQAA5VUXW/bOBB816/Yc4PWDmwr7WMDPxU+xICbAOfeyx2KgpJWFhGa1JFUbKdof/vNUrLroMUBFziG+bE7s7OzfEXf83mhQuPL98QHLrvIFRVHkr3x2wnVzpN1dmbcVlsKDRsT5tkrCsyUd8HnoVGe88qVuYTkfFC71nDIQ1Q+du2s1ljRGMGxYWpV+ai2nNLPEDRBKoE4hWVYr2ogRvKdtdpuSdvIXpVRP7E5Tqly9k3ENyl7jA0uZKUKTFczXMwIf9f6ekK3t+k3VhPyHDtvscNBlQLQp2g7pOlao0sVmYy2oAkm/Y/EXtD3OjYUQJtpKKHRITp/FBE2zC+E2jnP5NqonQ3Z3Wrz6cPD/ac/HtYLvbU4KlxsBF+1LduKorvMRyLUqTz3xH7vNXjpmIUGKWkW0s0+NhtkCxwTy1MOw3YrfMFL4Derv5bQqUqL31frZdpAHQPp7LS/GF19vXv4uPyWz40rlcmflM+NLvqeyteXAWKUnRIv3t7c3GSXmRfvZAfUyobLx1TcXtvK7SnoZyZVo5HEqmyodLud8ML/lDT6zSWHoPxxiuiuraQjEv6kTCdtqWm9ul9uUi0fHtZ/frzfzH/okuCAJCiDgSDMdDBcBKql0fX1iLoAc6N8JduNVTuG8VqFQGfBCUY7RFA2Bkl2KoKoMoZ6Bwv0M3tHpz5X2nMJSfRwGLriYgv2OPPbGleIobKU9hFmQ7F9khp3bWWO5zlLFLQVcybcaWqmBLS6ZenZ3zQ79KNXaJufTugzvX5NDMFodDXe3C3X60W6EJpz9GSUpcmN0NVrVRjYq2IbdX0UE4lcZeMdZu/oOto7/yhijU+qJTm926Gogo3bTzJ0Dmyegfi14kIr+6WPfz/7NuoJ4dhTzrHMX1ygz7eSrh/YFyeLqzHm8Rchk6zWQp9tIg4iW6/gIlnATng8ZOyoZoVplxdHauinyTKnaetDkQPvRki+0/ENmmc8q+o4HKdSE7zYfngbU4PTJnClL6Kj6zxc+9PdyVx0+Y2G9rt/qHVBH84F96LVl69neg1/FNEP3EVRl2rN/0cgAtic8U48/yPzL67gCMLj8y/5QMLCKwYAAA=="
+    BASH_SETUP_FILE_11_PATHS="H4sIALZU1WQAAwtwDPGwVVIJAFJWKh7+vq76ejn5yYk5+kmZefrp+SBKiSsAjyIlLi4AbT3F70QAAAA="
+    BASH_SETUP_FILE_13_ALIAS="H4sIAJoh1WQAA11Ry27bMBC86ysGimE1aSU6x8YwiiBAfqDoobCdYCOuLCIUKXAppAKEfnspKekhJy5nZ2f2cQXxHaPzgWEFZA0JS7a8sPZQJLAk+1h8QLRC9/+B9f+QGNkV7rUGOeRkOcR8lUPjA6x3F4TBOZPe2ncdOS0V8EuSr3nl1MZdqgfEMve43e2xaLy7LPGhcD6aZiyFnUZZDuHCrh4P1r+hNMg3X47Y/MABO5yx3YLr1iNy6Iwji2laAQ7Bh+t8prdGog/jFMlYlO52Ek66jOJUFKKeTnJz3JXfz6evKVJqL+q4307n9Fna2Sg1E6/zdfKlT82NcSYa76RK4G8/oKMRb+Qiokc/xDSKxeiHANJ6ZcK4lCMI9xQoMhpj160kib+qeiFpn98v8y2RJTJp+GZRSOuMLXdoOV1Qm8B1tOPs/ZMZapCgpKXASvtazULlHPAf6nrLs/NcjY8Eeqpf6cJVlpkGR5TNZ3+c93OFy9KpUH3OZo3J/gH0a3VIUgIAAA=="
+    BASH_SETUP_FILE_15_COLORS="H4sIABkd1WQAA5VUWW/aQBB+jn/FyKAAKYQjh1ojV5FQVEVKlSqp1IeA0GKPYytml+7BodL+9s7ukgRCWrXIMuuZb2a+ubYCCjUwyBhPVjCTYjrTUOeCtxJRCtkEw0tUChYIj1ws7H+4YFyH4PSNIGGKRNWvl7efQyh4APRbapRT72B91OqdnXusNxn7IPEKVb8foGJJEFQoTCKmU+QaMiGJj4NiumHUhCIDnSNYxwVnJeRMOUHCZmxSlIVe9UEbyTElZyLLYLKCFDNmSg1aABca0kJpyRLt7IxCGblTJhKjiDkFffa+KHgqFuRJ5cKUKUwQBHdoYfTMaIoAli/jqWo65xu1pxtUKIkEx6/zDQJK4x5anAq2jwhh1LdOfA09cglto2R7UvC2izuCw0NwJ2oby6ALHw/bKc7b3JTlxvqgAt+QCjRHX0VQZjYTUveBKWWmCIWuKUt/VhbUSUpW53CZTFnr9L01rl/d3bSvLget89Peh8Yx1K9Z8mgzVibJn5xBoQCXWuIUyxVIJrEJVA2HsU6og3YwFq58GklDXXiyJe4Z2RBbSZQZ98kcN4KDvYrZUmCp8JXKybMioMfXNKzuljIGst4p6Je7blyr/khxQlmPk1wKoaN39eqOoPFzeD/snJzcd7r9k950OBqai2H+JOuQINoCnFrAYls7rEItcHz/J6SNEZEja0wZGW53cjsf2J8WuzRXdimoEfRQEd3WuXV2m1LoEm3R7aRf5ELpKC3k3ro6o6O1XM71UeOZdEg54ajT/1fuQOTZcFQl29A5oc3euNvaceRsUr4aSjtXpXKjw0olgKUpjS5PV/RZEFcV7C0CpeFc7LZXo9LQkvCrffwCoGXBOe1zWK2/CFuTHVAjhPX6TVjD5+KIEMm4RkRb/lqLmdGi5tQVryfDuEavPyPmDjLfx2xFeZA4i2v2/YYfD8k8JvsrCD0I3wDZlak836+fBgNYMMkL/uC7gFJS9gEuXXdIPR7cXN/c3pEzq4nt3HejjYn7OovoAkR3PI8Sugm0O/ei0t6sdI6+Gw+oBb8BXPtjkG8GAAA="
+    BASH_SETUP_FILE_40_CARGO="H4sIAMQh1WQAA9NTUFLx8Pd11ddLTixKz9dPzStT4gIA4otecxUAAAA="
+
+    BASH_SETUP_VERSION_CURR=
+    if [ -e "${BASH_SETUP_VERSION_FILE}" ]
+    then
+        BASH_SETUP_VERSION_CURR=$(cat "${BASH_SETUP_LOCAL_DIR}/version}")
+    fi
+
+    if [ "${BASH_SETUP_VERSION_CURR}" != "${BASH_SETUP_VERISON}" ]
+    then
+        echo "Backing up old version"
+        cp  "${HOME}/.bashrc" "${BASH_SETUP_BACKUP_ROOT}"
+        cp  -r "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP_LOCAL}"
+        cp  -r "${BASH_SETUP_CONFIG_DIR}" "${BASH_SETUP_BACKUP_CONFIG}"
+
+        echo "Creating new config folder"
+        mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}"
+        mkdir -p "${BASH_SETUP_CONFIG_DIR}"
+
+        echo "Creating file ${BASH_SETUP_CONFIG_DIR}"
+        (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
+        (echo "${BASH_SETUP_FILE_11_PATHS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
+        (echo "${BASH_SETUP_FILE_13_ALIAS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
+        (echo "${BASH_SETUP_FILE_15_COLORS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
+        (echo "${BASH_SETUP_FILE_40_CARGO}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
+
+        echo "Overriding main .bashrc"
+        (echo "${BASH_SETUP_FILE_ROOT}"|gunzip -c|base64 -d) > "${HOME}/.bashrc"
+    fi
+    echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_LOCAL_DIR}/version}"
+}
+
+CustomDisableESM()
+{
+    if [ -e "/etc/apt/apt.conf.d/20apt-esm-hook.conf" ]
+    then
+        PATH_DISABLED_APT_ESM="$HOME/.local/disabled-esm"
+        mkdir -p "${PATH_DISABLED_APT_ESM}"
+        mv "/etc/apt/apt.conf.d/20apt-esm-hook.conf" "${PATH_DISABLED_APT_ESM}/"
+    fi
+}
+
+CustomRust()
+{
+    RUSTUP=$(command -v rustup)
+    RUST_VERSION=1.71.1
+    RUST_CURR_VERSION=$(rustc --version|awk '{print $2}')
+    if [ -z "${RUSTUP}" ]
+    then
+        echo "Installing rust"
+        TEMP_RUSTUP="${PATH_TEMP}/rustup"
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "${TEMP_RUSTUP}"
+        chmod +x "${TEMP_RUSTUP}"
+        "${TEMP_RUSTUP}" -y
+    else
+        if [ "${RUST_CURR_VERSION}" != "${RUST_VERSION}" ]
+        then
+            echo "Updating rust"
+
+            rustup update
+        fi
+    fi
+}
+
+# custom installs
+CustomNode()
+{
+    FNM=$(command -v fnm)
+    if [ "$(command -v cargo)" ]
+    then
+        CustomRust
+    fi
+
+    # need rust
+    if [ -z "${FNM}" ]
+    then
+        cargo install fnm
+        # shellcheck disable=2016
+        echo 'eval "$(fnm env --use-on-cd)"' > "${HOME}/.config/bash/41-node"
+        fnm install --lts
+    else
+        fnm install --lts
+    fi
+}
+
+CustomBashLSP()
+{
+    BASH_LSP=$(command -v bash-language-server)
+
+    if [ -n "$(command -v npm)" ]
+    then
+        CustomNode
+    fi
+
+    if [ -z "${BASH_LSP}" ]
+    then
+        if [ -n "$(command -v "node")" ]
+        then
+            npm i -g bash-language-server
+        fi
+    fi
+}
+
+CustomGo()
+{
+    # shellcheck disable=SC2034
+    PATH_GO="${PATH_LOCAL_BIN}"
+    GO=$(command -v go)
+    GO_VERSION=1.21.0
+    GO_URL_PATH="https://go.dev/dl/"
+    GO_URL_FILE="go${GO_VERSION}.linux-amd64.tar.gz"
+    GO_URL_FULL="${GO_URL_PATH}${GO_URL_FILE}"
+    GO_VERSION_CURR=$(go version)
+    GO_VERSION_TEMPLATE="go version go${GO_VERSION_CURR} linux/amd64"
+    if [ -z "${GO}" ] && [ "${GO_VERSION_TEMPLATE}" != "${GO_VERSION_CURR}" ]
+    then
+        echo "Installing go"
+        curl -L "${GO_URL_FULL}" -o "${PATH_TEMP}/${GO_URL_FILE}"
+        rm -rf "${PATH_LOCAL_BIN}/go"
+        tar -C "${PATH_LOCAL_BIN}" -xzf "${PATH_TEMP}/${GO_URL_FILE}"
+    fi
+}
+
+CustomTidal()
+{
+    TIDAL=$(command -v tidal-hifi)
+    TIDAL_VERSION=5.5.0
+    TIDAL_VERSION_CURR=$(dpkg -l tidal-hifi |grep tidal-hifi|awk '{print $3}')
+    TIDAL_URL_PATH="https://github.com/Mastermindzh/tidal-hifi/releases/download/${TIDAL_VERSION}/"
+    TIDAL_URL_FILE="tidal-hifi_${TIDAL_VERSION}_amd64.deb"
+    TIDAL_URL_FULL="${TIDAL_URL_PATH}${TIDAL_URL_FILE}"
+
+    if [ -z "${TIDAL}" ] && [ "${TIDAL_VERSION}" != "${TIDAL_VERSION_CURR}" ]
+    then
+        echo "Installing Tidal-hifi"
+        curl -L "${TIDAL_URL_FULL}" -o "${PATH_TEMP}/${TIDAL_URL_FILE}"
+        sudo apt-get install -y "${PATH_TEMP}/${TIDAL_URL_FILE}"
+    fi
+}
+
+CustomLutris()
+{
+    LUTRIS=$(command -v lutris)
+    # shellcheck disable=SC2034
+    PATH_LUTRIS="${PATH_LOCAL_BIN}"
+    LUTRIS_VERSION=0.5.13
+    LUTRIS_CURR_VERSION=$(lutris --version)
+    LUTRIS_VERSION_TEMPLATE=lutris-${LUTRIS_VERSION}
+    LUTRIS_URL_PATH="https://github.com/lutris/lutris/releases/download/v0.5.13/"
+    LUTRIS_URL_FILE="lutris_0.5.13_all.deb"
+    LUTRIS_URL_FULL="${LUTRIS_URL_PATH}${LUTRIS_URL_FILE}"
+
+
+    if [ -z "${LUTRIS}" ] && [ "${LUTRIS_CURR_VERSION}" != "${LUTRIS_VERSION_TEMPLATE}" ]
+    then
+        echo "Installing Lutris"
+        curl -L "${LUTRIS_URL_FULL}" -o "${PATH_TEMP}/${LUTRIS_URL_FILE}"
+        sudo apt-get install -y "${PATH_TEMP}/${LUTRIS_URL_FILE}"
+    fi
+}
+
+CustomTerraform()
+{
+    # shellcheck disable=SC2034
+    TERRAFORM=$(command -v terraform)
+    PATH_TERRAFORM="${PATH_LOCAL_BIN}"
+    TERRAFORM_VERSION=1.5.5
+    TERRAFORM_URL_PATH="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/"
+    TERRAFORM_URL_FILE="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+    TERRAFORM_URL_FULL="${TERRAFORM_URL_PATH}${TERRAFORM_URL_FILE}"
+    TERRAFORM_VERSION_CURR=$(terraform --version)
+    TERRAFORM_VERSION_TEMPLATE="Terraform v${TERRAFORM_VERSION} on linux_amd64"
+
+    if [ -z "${TERRAFORM}" ] && [ "${TERRAFORM_VERSION_CURR}" != "${TERRAFORM_VERSION_TEMPLATE}"  ]
+    then
+        set -x
+        echo "Installing Terraform"
+        curl -L "${TERRAFORM_URL_FULL}" -o "${PATH_TEMP}/${TERRAFORM_URL_FILE}"
+        rm  -f "${PATH_LOCAL_BIN}/terraform"
+        PREV_FOLDER="${PWD}"
+        ls "${PATH_TEMP}"
+        cd "${PATH_TEMP}" || (echo "${PATH_TEMP} doesnt exist" && exit 1)
+        unzip -qq "${TERRAFORM_URL_FILE}"
+
+        mv terraform "${PATH_TERRAFORM}/terraform"
+        cd "${PREV_FOLDER}" || (echo "${PREV_FOLDER} doesnt exist" && exit 1)
+    fi
+}
+
+CustomAWS()
+{
+    AWSCLI=$(command -v aws)
+    # shellcheck disable=SC2034
+    PATH_AWSCLI="${PATH_LOCAL_BIN}"
+    AWSCLI_URL_PATH="https://awscli.amazonaws.com/"
+    AWSCLI_URL_FILE="awscli-exe-linux-x86_64.zip"
+    AWSCLI_URL_FULL="${AWSCLI_URL_PATH}${AWSCLI_URL_FILE}"
+    if [ -z "${AWSCLI}" ]
+    then
+        echo "Installing AWS cli"
+        curl -L "${AWSCLI_URL_FULL}" -o "${PATH_TEMP}/${AWSCLI_URL_FILE}"
+        PREV_FOLDER="${PWD}"
+        cd "${PATH_TEMP}" || (echo "${PATH_TEMP} doesnt exist" && exit 1)
+        unzip -qq "${AWSCLI_URL_FILE}"
+        "${SUDO}" ./aws/install
+        cd "${PREV_FOLDER}" || (echo "${PREV_FOLDER} doesnt exist" && exit 1)
+    fi
+}
+
+CustomDisableESM
+
+
+AddAptDep "unzip" "unzip"
+AddAptDep "curl" "curl"
+
+TriggerAPT
+
+# System
+
+AddAptDep "podman" " podman buildah"
+AddAptDep "v4l2-ctl" "v4l-utils"
+AddAptDep "howdy" "howdy" "ppa:boltgolt/howdy"
+AddAptDep "mpv"
+AddAptDep "sshd" "openssh-server"
+AddAptDep "xclip"
+AddAptDep "mupdf"
+AddAptDep "virt-manager" " virt-manager qemu-system-data  
+        qemu-system-gui qemu-system-mips qemu-system-misc qemu-system-ppc  
+        qemu-system-s390x qemu-system-sparc qemu-system-x86 
+        qemu-system-x86-microvm "
+AddAptDep "curl"
+AddAptDep "unzip"
+
+# Multimedia
+CustomTidal
+
+# Programming
+AddAptDep "hx" "helix" "ppa:maveonair/helix-editor"
+AddAptDep "git"
+AddAptDep "clang" "build-essential clang llvm make autoconf cmake ninja-build"
+AddAptDep "clangd"
+AddAptDep "gnat" "gptbuild gnat"
+AddAptDep "shellcheck"
+AddAptDep "ndisasm" "nasm"
+AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library frotz"
+CustomGo
+CustomRust
+CustomNode
+CustomBashLSP
+CustomTerraform
+CustomAWS
+
+# Utilities
+AddAptDep "keepassxc"
+AddAptDep "transmission-gtk"
+AddAptDep "ffmpeg"
+
+# Games
+AddFlatpakDep "net.pcsx2.PCSX2"
+AddFlatpakDep "com.valvesoftware.Steam"
+AddFlatpakDep "com.dosbox_x.DOSBox-X"
+AddSnapDep "discord" "discord"
+CustomLutris
+
+
+
+
+echo "Installing:"
+echo " ppa: ${PPA}"
+echo " apt: ${SYSTEM_DEPS}"
+echo "----"
+echo " snap: ${SNAP_DEPS}"
+echo "----"
+echo " flatpak: ${FLATPAK_DEPS}"
+
+
+TriggerAPT
+TriggerFlatPak
+TriggerSnap
+
