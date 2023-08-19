@@ -23,6 +23,7 @@ BASH_SETUP_BACKUP="${HOME}/.local/opt/bash/bkupbash"
 BASH_SETUP_VERSION_FILE="${BASH_SETUP_LOCAL_DIR}"
 BASH_SETUP_VERISON=1.0
 
+mkdir -p "${PATH_LOCAL_BIN}"
 # Prereq
 SUDO=$(command -v sudo)
 
