@@ -186,6 +186,9 @@ setBash() {
 
     if [ "${BASH_SETUP_VERSION_CURR}" != "${BASH_SETUP_VERISON}" ]
     then
+        mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}"
+        mkdir -p "${BASH_SETUP_BACKUP_CURR_LOCAL}"
+        mkdir -p "${BASH_SETUP_BACKUP_CURR_CONFIG}"
         LogTrace "Backing up old version"
         cp  "${HOME}/.bashrc" "${BASH_SETUP_BACKUP_ROOT}"
         cp  -r "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP_LOCAL}"
@@ -417,6 +420,7 @@ CustomAWS()
 }
 
 CustomDisableESM
+setBash
 
 
 AddAptDep "unzip" "unzip"
