@@ -198,11 +198,11 @@ setBash() {
         mkdir -p "${BASH_SETUP_CONFIG_DIR}"
 
         LogTrace "Creating file ${BASH_SETUP_CONFIG_DIR}"
-        (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
-        (echo "${BASH_SETUP_FILE_11_PATHS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
-        (echo "${BASH_SETUP_FILE_13_ALIAS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
-        (echo "${BASH_SETUP_FILE_15_COLORS}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
-        (echo "${BASH_SETUP_FILE_40_CARGO}"|gunzip -c|base64 -d) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
+        (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
+        (echo "${BASH_SETUP_FILE_11_PATHS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
+        (echo "${BASH_SETUP_FILE_13_ALIAS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
+        (echo "${BASH_SETUP_FILE_15_COLORS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
+        (echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
 
         LogTrace "Overriding main .bashrc"
         (echo "${BASH_SETUP_FILE_ROOT}"|gunzip -c|base64 -d) > "${HOME}/.bashrc"
