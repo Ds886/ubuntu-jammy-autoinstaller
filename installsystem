@@ -29,8 +29,10 @@ SUDO=$(command -v sudo)
 AddAptDep()
 {
     ADD_DEP_EXECUTABLE="$1"
+    set +u
     ADD_DEP_APT="${2}"
     ADD_DEP_PPA="${3}"
+    set -u
     ADD_DEP_EXEC_TEST=
 
     if [ -z "${ADD_DEP_APT}" ]
