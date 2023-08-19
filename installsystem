@@ -350,7 +350,14 @@ CustomLutris()
     # shellcheck disable=SC2034
     PATH_LUTRIS="${PATH_LOCAL_BIN}"
     LUTRIS_VERSION=0.5.13
-    LUTRIS_CURR_VERSION=$(lutris --version)
+    LUTRIS_CURR_VERSION=
+    if [ -n "${LUTRIS}" ]
+    then
+        LUTRIS_CURR_VERSION=$(lutris --version)
+    else
+        LUTRIS_CURR_VERSION="null"
+    fi
+
     LUTRIS_VERSION_TEMPLATE=lutris-${LUTRIS_VERSION}
     LUTRIS_URL_PATH="https://github.com/lutris/lutris/releases/download/v0.5.13/"
     LUTRIS_URL_FILE="lutris_0.5.13_all.deb"
