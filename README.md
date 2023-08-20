@@ -1,8 +1,14 @@
 # ubuntu-jammy-autoinstaller
 
-An autoinstaller for ubuntu jammy
+An autoinstaller/bootstrapper for ubuntu jammy
 
-Includes:
+# Usage
+run the command
+```
+./installsystem
+````
+
+# What included
 1. A setup for bashconfig  with smaller files in .config
 1. Simplified abstraction for adding packages in snap,flatpak,apt
 1. Programming
