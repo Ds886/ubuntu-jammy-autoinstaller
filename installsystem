@@ -553,6 +553,7 @@ AddAptDep "curl"
 AddAptDep "unzip"
 
 # Multimedia
+AddFlatpakDep "com.plexamp.Plexamp"
 
 # Programming
 AddAptDep "hx" "helix" "ppa:maveonair/helix-editor"
