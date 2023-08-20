@@ -283,83 +283,7 @@ CustomDisableESM()
     fi
 }
 
-CustomRust()
-{
-    set +e
-    RUSTUP=$(command -v rustup)
-    set -e
-    RUST_VERSION=1.71.1
-    PATH="${PATH}:${HOME}/.cargo/bin"
-    RUST_CURR_VERSION=$(rustc --version|awk '{print $2}')
-    if [ -z "${RUSTUP}" ]
-    then
-        LogTrace "Installing rust"
-        TEMP_RUSTUP="${PATH_TEMP}/rustup"
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "${TEMP_RUSTUP}"
-        chmod +x "${TEMP_RUSTUP}"
-        "${TEMP_RUSTUP}" -y
-        PATH="${PATH}:${HOME}/.cargo/bin"
-    else
-        if [ "${RUST_CURR_VERSION}" != "${RUST_VERSION}" ]
-        then
-            LogTrace "Updating rust"
-
-            rustup update
-        fi
-    fi
-}
-
-# custom installs
-CustomNode()
-{
-    # Disable error handling to check if command exist
-    set +e
-    FNM=$(command -v fnm)
-    set -e
-    if [ "$(command -v cargo)" ]
-    then
-        LogTrace "Rust wasnt detected - installing"
-        CustomRust
-    fi
-
-    # need rust
-    if [ -z "${FNM}" ]
-    then
-        LogTrace "Installing fnm"
-        cargo install fnm
-        LogTrace "Loading fnm shell env"
-        # shellcheck disable=2016
-        echo 'eval "$(fnm env --use-on-cd)"' > "${HOME}/.config/bash/41-node"
-        LogTrace "Installing latest lts node"
-        fnm install --lts
-    else
-        fnm install --lts
-    fi
-}
-
-CustomBashLSP()
-{
-    # Disable error handling to check if command exist
-    set +e
-    BASH_LSP=$(command -v bash-language-server)
-    set -e
-
-    if [ -n "$(command -v npm)" ]
-    then
-        LogTrace "Node wasnt detected - installing"
-        CustomNode
-    fi
-
-    if [ -z "${BASH_LSP}" ]
-    then
-        if [ -n "$(command -v "node")" ]
-        then
-            LogTrace "Installing bash-language-server using npm"
-            npm i -g bash-language-server
-        fi
-    fi
-}
-
+# Example extraction
 CustomGo()
 {
     GO_VERSION_CURR=
@@ -399,28 +323,7 @@ CustomGo()
     fi
 }
 
-CustomTidal()
-{
-    # Disable error handling to check if command exist
-    set +e
-    TIDAL=$(command -v tidal-hifi)
-    set -e
-    TIDAL_VERSION=5.5.0
-    TIDAL_VERSION_CURR=$(dpkg -l tidal-hifi |grep tidal-hifi|awk '{print $3}')
-    TIDAL_URL_PATH="https://github.com/Mastermindzh/tidal-hifi/releases/download/${TIDAL_VERSION}/"
-    TIDAL_URL_FILE="tidal-hifi_${TIDAL_VERSION}_amd64.deb"
-    TIDAL_URL_FULL="${TIDAL_URL_PATH}${TIDAL_URL_FILE}"
-
-    if [ -z "${TIDAL}" ] && [ "${TIDAL_VERSION}" != "${TIDAL_VERSION_CURR}" ]
-    then
-        LogTrace "Installing Tidal-hifi version: ${TIDAL_VERSION}"
-        LogTrace "Downloading ${TIDAL_URL_FULL} to ${PATH_TEMP}/${TIDAL_URL_FILE}"
-        curl -L "${TIDAL_URL_FULL}" -o "${PATH_TEMP}/${TIDAL_URL_FILE}"
-        LogTrace "Installing tidal deb package"
-        sudo apt-get install -y "${PATH_TEMP}/${TIDAL_URL_FILE}"
-    fi
-}
-
+# Example deb installation
 CustomLutris()
 {
     set +e
@@ -453,81 +356,11 @@ CustomLutris()
     fi
 }
 
-CustomTerraform()
-{
-    # Disable error handling to check if command exist
-    set +e
-    TERRAFORM=$(command -v terraform)
-    set -e
-    PATH_TERRAFORM="${PATH_LOCAL_BIN}"
-    TERRAFORM_VERSION=1.5.5
-    TERRAFORM_VERSION_CURR=
-    TERRAFORM_URL_PATH="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/"
-    TERRAFORM_URL_FILE="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
-    TERRAFORM_URL_FULL="${TERRAFORM_URL_PATH}${TERRAFORM_URL_FILE}"
-
-    if [ -n "${TERRAFORM}" ]
-    then
-        TERRAFORM_VERSION_CURR=$(terraform --version)
-    else
-        TERRAFORM_VERSION_CURR="null"
-    fi
-
-    TERRAFORM_VERSION_TEMPLATE="Terraform v${TERRAFORM_VERSION} on linux_amd64"
-
-    if [ -z "${TERRAFORM}" ] && [ "${TERRAFORM_VERSION_CURR}" != "${TERRAFORM_VERSION_TEMPLATE}"  ]
-    then
-        LogTrace "Installing Terraform"
-        LogTrace "Downloading ${TERRAFORM_URL_FULL} to ${PATH_TEMP}/${TERRAFORM_URL_FILE}"
-        curl -L "${TERRAFORM_URL_FULL}" -o "${PATH_TEMP}/${TERRAFORM_URL_FILE}"
-        LogTrace "Removing old terraform package"
-        rm  -f "${PATH_LOCAL_BIN}/terraform"
-        PREV_FOLDER="${PWD}"
-        cd "${PATH_TEMP}" || (LogError "${PATH_TEMP} doesnt exist" && exit 1)
-        LogTrace "Extracting Terraform version ${TERRAFORM_VERSION}"
-        unzip -qq "${TERRAFORM_URL_FILE}"
-
-        LogTrace "Moving terraform binary"
-        mv terraform "${PATH_TERRAFORM}/terraform"
-        LogTrace "Backing down"
-        cd "${PREV_FOLDER}" || (LogError "${PREV_FOLDER} doesnt exist" && exit 1)
-    fi
-}
-
-CustomAWS()
-{
-    # Disable error handling to check if command exist
-    set +e
-    AWSCLI=$(command -v aws)
-    set -e
-
-    # shellcheck disable=SC2034
-    PATH_AWSCLI="${PATH_LOCAL_BIN}"
-    AWSCLI_URL_PATH="https://awscli.amazonaws.com/"
-    AWSCLI_URL_FILE="awscli-exe-linux-x86_64.zip"
-    AWSCLI_URL_FULL="${AWSCLI_URL_PATH}${AWSCLI_URL_FILE}"
-    if [ -z "${AWSCLI}" ]
-    then
-        LogTrace "Installing AWS cli"
-
-        LogTrace "Downloading ${AWSCLI_URL_FULL} to ${PATH_TEMP}/${AWSCLI_URL_FILE}"
-        curl -L "${AWSCLI_URL_FULL}" -o "${PATH_TEMP}/${AWSCLI_URL_FILE}"
-        PREV_FOLDER="${PWD}"
-        LogTrace "Changing to folder: ${PATH_TEMP}"
-        cd "${PATH_TEMP}" || (LogError "${PATH_TEMP} doesnt exist" && exit 1)
-        LogTrace "Extracting ${AWSCLI_URL_FILE}"
-        unzip -qq "${AWSCLI_URL_FILE}"
-        LogTrace "Installing aws"
-        "${SUDO}" ./aws/install
-        LogTrace "Changing to folder: ${PREV_FOLDER}"
-        cd "${PREV_FOLDER}" || (LogError "${PREV_FOLDER} doesnt exist" && exit 1)
-    fi
-}
-
+# Prepare envrionment
 CustomDisableESM
 setBash
 
-
+# Predependecencise
 AddAptDep "unzip" "unzip"
 AddAptDep "curl" "curl"
 
@@ -537,42 +370,16 @@ then
 fi
 
 # System
-
-AddAptDep "podman" " podman buildah"
-AddAptDep "v4l2-ctl" "v4l-utils"
-AddAptDep "howdy" "howdy" "ppa:boltgolt/howdy"
+#Example Multi package
+AddAptDep "podman" "podman buildah"
+# example package name is the same as the executable
 AddAptDep "mpv"
-AddAptDep "sshd" "openssh-server"
-AddAptDep "xclip"
-AddAptDep "mupdf"
-AddAptDep "virt-manager" " virt-manager qemu-system-data  
-        qemu-system-gui qemu-system-mips qemu-system-misc qemu-system-ppc  
-        qemu-system-s390x qemu-system-sparc qemu-system-x86 
-        qemu-system-x86-microvm "
-AddAptDep "curl"
-AddAptDep "unzip"
-
-# Multimedia
-
-# Programming
+# Example Package with custom ppa
 AddAptDep "hx" "helix" "ppa:maveonair/helix-editor"
-AddAptDep "git"
-AddAptDep "clang" "build-essential clang llvm make autoconf cmake ninja-build"
-AddAptDep "clangd"
-AddAptDep "gnat" "gprbuild gnat"
-AddAptDep "shellcheck"
-AddAptDep "ndisasm" "nasm"
-AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library frotz"
-
-# Utilities
-AddAptDep "keepassxc"
-AddAptDep "transmission-gtk"
-AddAptDep "ffmpeg"
-
-# Games
+# Example flatpak
 AddFlatpakDep "net.pcsx2.PCSX2"
-AddFlatpakDep "com.valvesoftware.Steam"
-AddFlatpakDep "com.dosbox_x.DOSBox-X"
+
+# EXample snap
 AddSnapDep "discord" "discord"
 
 
@@ -584,20 +391,11 @@ LogTrace " snap: ${SNAP_DEPS}"
 LogTrace "----"
 LogTrace " flatpak: ${FLATPAK_DEPS}"
 
-
+# running installation
 TriggerAPT
 TriggerFlatPak
 TriggerSnap
 
-# Customs
-## Programming
+# Calling custom functions
 CustomGo
-CustomRust
-CustomNode
-CustomBashLSP
-CustomTerraform
-CustomAWS
 CustomLutris
-
-## Multimedia
-CustomTidal
