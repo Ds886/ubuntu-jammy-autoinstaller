@@ -39,76 +39,98 @@ mkdir -p "${PATH_LOCAL_BIN}"
 # Prereq
 SUDO=$(command -v sudo)
 
+# Add apt dependency
+# usage : AddAptDep <executable-name> <Package name> <external ppa>
 AddAptDep()
 {
     ADD_DEP_EXECUTABLE="$1"
+    # Disable undefined hanfling as variables are optional
     set +u
     ADD_DEP_APT="${2}"
     ADD_DEP_PPA="${3}"
     set -u
     ADD_DEP_EXEC_TEST=
 
+
     if [ -z "${ADD_DEP_APT}" ]
     then
         ADD_DEP_APT="${ADD_DEP_EXECUTABLE}"
     fi
 
+    # Disable error handling to check if command exist
     set +e 
     ADD_DEP_EXEC_TEST="$(command -v "${ADD_DEP_EXECUTABLE}")"
     set -e
 
     if [ -z "$ADD_DEP_EXEC_TEST" ]
     then
+        # Add PPA if exist
         if [ -n "$ADD_DEP_PPA" ]
         then
             PPA="${PPA} ${ADD_DEP_PPA}"
         fi
+
+        # Append list
         SYSTEM_DEPS="$SYSTEM_DEPS ${ADD_DEP_APT}"
     fi
 }
 
+# Add Flatpak dependency
+# usage : AddFlatpakDep <Package name>
 AddFlatpakDep()
 {
     ADD_DEP_FLATPAK_NAME="${1}"
+
+    # check if it is found in flatpak install directory
     if [ ! -e "${PATH_FLATPAK}/${ADD_DEP_FLATPAK_NAME}" ]
     then
+        LogTrace "Adding flatpak: ${ADD_DEP_FLATPAK_NAME}"
         FLATPAK_DEPS="${FLATPAK_DEPS} ${ADD_DEP_FLATPAK_NAME}"
     fi
 }
 
+# Add Flatpak dependency
+# usage : AddSnapDep <Executable name> <Package name>
 AddSnapDep()
 {
     ADD_DEP_SNAP_EXECUTABLE="$1"
     ADD_DEP_SNAP="${2}"
 
+    # Disable error handling to check if command exist
     set +e 
     ADD_DEP_SNAP_EXEC_TEST="$(command -v "${ADD_DEP_SNAP_EXECUTABLE}")"
     set -e
 
     if [ -z "$ADD_DEP_SNAP_EXEC_TEST" ]
     then
+        LogTrace "Adding snap: ${ADD_DEP_SNAP}"
         SNAP_DEPS="$SNAP_DEPS ${ADD_DEP_SNAP}"
     fi
 }
 
+# Run apt install with loaded packages
 TriggerAPT()
 {
-    set +e
-    ADD_REPO="$(command -v apt-add-repository)"
-    set -e
-
-    if [ -z "${ADD_REPO}" ]
-    then
-        sudo apt update && sudo apt-get  install -y software-properties-common
-    fi
-
     LogTrace "Updating ubuntu and installing deps"
     if [ -n "${PPA}" ]
     then
-        LogTrace "  Adding ppa: ${PPA}"
+
+        # Disable error handling to check if command exist       
+        set +e
+        ADD_REPO="$(command -v apt-add-repository)"
+        set -e
+
+        if [ -z "${ADD_REPO}" ]
+        then
+            LogTrace "apt-add-repositroy check: \"${ADD_REPO}\""
+            LogTrace "apt-add-repositroy not found. Installing package software-properties-common"
+            sudo apt update && sudo apt-get  install -y software-properties-common
+        fi
+
         # shellcheck disable=SC2086
         set -- ${PPA}
         for CURR_PPA do
+            LogTrace "  Trigger Adding ppa: ${CURR_PPA}"
             "${SUDO}" add-apt-repository -y "${CURR_PPA}"
             shift
         done
@@ -134,6 +156,8 @@ TriggerFlatPak()
     set -e
     if [ -z "${FLATPAK}" ]
     then
+        LogTrace "FLATPAK_CHECK=\"${FLATPAK}\""
+        LogTrace "flatpak not found, installing"
         "${SUDO}" apt update && "${SUDO}" apt-get  install -y flatpak
         flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
     fi
@@ -143,6 +167,7 @@ TriggerFlatPak()
     set -- ${FLATPAK_DEPS}
     for item
     do
+        LogTrace "  Trigger installing flathub: ${item}"
         flatpak install -y flathub "$item"
         shift
     done
@@ -152,69 +177,106 @@ TriggerSnap()
 {
     if [ -n "${SNAP_DEPS}" ]
     then
+        LogTrace "  Trigger installing snap: ${SNAP_DEPS}"
         # shellcheck disable=SC2086
         "${SUDO}" snap install ${SNAP_DEPS}
     fi
 }
 
+# Creates a setup of bash config located in .config
+# Path:
+#  Configs location (loaded dynamically) - ~/.config/bash
+#  Versioning                            - ~/.local/opt/bash/share/version
+#  Backups of older versions             - ~/.local/opt/bash/bkupbash
 setBash() {
+    BASH_SETUP_VERISON=1.2
+    BASH_SETUP_VERSION_CURR=
+
     BASH_SETUP_CONFIG_DIR="${HOME}/.config/bash"
     BASH_SETUP_LOCAL_DIR="${HOME}/.local/opt/bash/share"
     BASH_SETUP_BACKUP="${HOME}/.local/opt/bash/bkupbash"
     BASH_SETUP_VERSION_FILE="${BASH_SETUP_LOCAL_DIR}/version"
-    BASH_SETUP_VERISON=1.0
+
     BASH_SETUP_BACKUP_CURR_DIR=${BASH_SETUP_BACKUP}/$(date "+%F-%T")
     BASH_SETUP_BACKUP_ROOT=${BASH_SETUP_BACKUP_CURR_DIR}/.bashrc
     BASH_SETUP_BACKUP_LOCAL=${BASH_SETUP_BACKUP_CURR_DIR}/local
     BASH_SETUP_BACKUP_CONFIG=${BASH_SETUP_BACKUP_CURR_DIR}/config
-    mkdir -p "${PATH_LOCAL_BIN}" "${BASH_SETUP_CONFIG_DIR}"  "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP}"
 
-    # gzip -c < file|base64 -w0
+    # Files (Addded with `gzip -c < file|base64 -w0`)
+    ## ~/.bashrc
     BASH_SETUP_FILE_ROOT="H4sIAEok1WQAAwtwDPGId3IM9oh39vdz83S3VVLx8Pd11ddLzs9Ly0zXT0oszlDi4kJSEe/m6eMaDFSnkZaZl6KgpFIdgGZGrZKCbkllQapCmkJNcX5RiSbQgLT8IoXMktRchcw8BZVqDONqFbhS8rkUFIrzS4uSUxVUQEqBInmpXEAAAGZylTWkAAAA"
+    ## ~/.config/bash/10-ubuntudefaults
     BASH_SETUP_FILE_10_UBUNTUDEFAULTS="H4sIAMtR1WQAA5VUXW/bOBB816/Yc4PWDmwr7WMDPxU+xICbAOfeyx2KgpJWFhGa1JFUbKdof/vNUrLroMUBFziG+bE7s7OzfEXf83mhQuPL98QHLrvIFRVHkr3x2wnVzpN1dmbcVlsKDRsT5tkrCsyUd8HnoVGe88qVuYTkfFC71nDIQ1Q+du2s1ljRGMGxYWpV+ai2nNLPEDRBKoE4hWVYr2ogRvKdtdpuSdvIXpVRP7E5Tqly9k3ENyl7jA0uZKUKTFczXMwIf9f6ekK3t+k3VhPyHDtvscNBlQLQp2g7pOlao0sVmYy2oAkm/Y/EXtD3OjYUQJtpKKHRITp/FBE2zC+E2jnP5NqonQ3Z3Wrz6cPD/ac/HtYLvbU4KlxsBF+1LduKorvMRyLUqTz3xH7vNXjpmIUGKWkW0s0+NhtkCxwTy1MOw3YrfMFL4Derv5bQqUqL31frZdpAHQPp7LS/GF19vXv4uPyWz40rlcmflM+NLvqeyteXAWKUnRIv3t7c3GSXmRfvZAfUyobLx1TcXtvK7SnoZyZVo5HEqmyodLud8ML/lDT6zSWHoPxxiuiuraQjEv6kTCdtqWm9ul9uUi0fHtZ/frzfzH/okuCAJCiDgSDMdDBcBKql0fX1iLoAc6N8JduNVTuG8VqFQGfBCUY7RFA2Bkl2KoKoMoZ6Bwv0M3tHpz5X2nMJSfRwGLriYgv2OPPbGleIobKU9hFmQ7F9khp3bWWO5zlLFLQVcybcaWqmBLS6ZenZ3zQ79KNXaJufTugzvX5NDMFodDXe3C3X60W6EJpz9GSUpcmN0NVrVRjYq2IbdX0UE4lcZeMdZu/oOto7/yhijU+qJTm926Gogo3bTzJ0Dmyegfi14kIr+6WPfz/7NuoJ4dhTzrHMX1ygz7eSrh/YFyeLqzHm8Rchk6zWQp9tIg4iW6/gIlnATng8ZOyoZoVplxdHauinyTKnaetDkQPvRki+0/ENmmc8q+o4HKdSE7zYfngbU4PTJnClL6Kj6zxc+9PdyVx0+Y2G9rt/qHVBH84F96LVl69neg1/FNEP3EVRl2rN/0cgAtic8U48/yPzL67gCMLj8y/5QMLCKwYAAA=="
+    ## ~/.config/bash/11-paths
     BASH_SETUP_FILE_11_PATHS="H4sIALZU1WQAAwtwDPGwVVIJAFJWKh7+vq76ejn5yYk5+kmZefrp+SBKiSsAjyIlLi4AbT3F70QAAAA="
+    ## ~/.config/bash/13-alias
     BASH_SETUP_FILE_13_ALIAS="H4sIAJoh1WQAA11Ry27bMBC86ysGimE1aSU6x8YwiiBAfqDoobCdYCOuLCIUKXAppAKEfnspKekhJy5nZ2f2cQXxHaPzgWEFZA0JS7a8sPZQJLAk+1h8QLRC9/+B9f+QGNkV7rUGOeRkOcR8lUPjA6x3F4TBOZPe2ncdOS0V8EuSr3nl1MZdqgfEMve43e2xaLy7LPGhcD6aZiyFnUZZDuHCrh4P1r+hNMg3X47Y/MABO5yx3YLr1iNy6Iwji2laAQ7Bh+t8prdGog/jFMlYlO52Ek66jOJUFKKeTnJz3JXfz6evKVJqL+q4307n9Fna2Sg1E6/zdfKlT82NcSYa76RK4G8/oKMRb+Qiokc/xDSKxeiHANJ6ZcK4lCMI9xQoMhpj160kib+qeiFpn98v8y2RJTJp+GZRSOuMLXdoOV1Qm8B1tOPs/ZMZapCgpKXASvtazULlHPAf6nrLs/NcjY8Eeqpf6cJVlpkGR5TNZ3+c93OFy9KpUH3OZo3J/gH0a3VIUgIAAA=="
+    ## ~/.config/bash/15-alias
     BASH_SETUP_FILE_15_COLORS="H4sIABkd1WQAA5VUWW/aQBB+jn/FyKAAKYQjh1ojV5FQVEVKlSqp1IeA0GKPYytml+7BodL+9s7ukgRCWrXIMuuZb2a+ubYCCjUwyBhPVjCTYjrTUOeCtxJRCtkEw0tUChYIj1ws7H+4YFyH4PSNIGGKRNWvl7efQyh4APRbapRT72B91OqdnXusNxn7IPEKVb8foGJJEFQoTCKmU+QaMiGJj4NiumHUhCIDnSNYxwVnJeRMOUHCZmxSlIVe9UEbyTElZyLLYLKCFDNmSg1aABca0kJpyRLt7IxCGblTJhKjiDkFffa+KHgqFuRJ5cKUKUwQBHdoYfTMaIoAli/jqWo65xu1pxtUKIkEx6/zDQJK4x5anAq2jwhh1LdOfA09cglto2R7UvC2izuCw0NwJ2oby6ALHw/bKc7b3JTlxvqgAt+QCjRHX0VQZjYTUveBKWWmCIWuKUt/VhbUSUpW53CZTFnr9L01rl/d3bSvLget89Peh8Yx1K9Z8mgzVibJn5xBoQCXWuIUyxVIJrEJVA2HsU6og3YwFq58GklDXXiyJe4Z2RBbSZQZ98kcN4KDvYrZUmCp8JXKybMioMfXNKzuljIGst4p6Je7blyr/khxQlmPk1wKoaN39eqOoPFzeD/snJzcd7r9k950OBqai2H+JOuQINoCnFrAYls7rEItcHz/J6SNEZEja0wZGW53cjsf2J8WuzRXdimoEfRQEd3WuXV2m1LoEm3R7aRf5ELpKC3k3ro6o6O1XM71UeOZdEg54ajT/1fuQOTZcFQl29A5oc3euNvaceRsUr4aSjtXpXKjw0olgKUpjS5PV/RZEFcV7C0CpeFc7LZXo9LQkvCrffwCoGXBOe1zWK2/CFuTHVAjhPX6TVjD5+KIEMm4RkRb/lqLmdGi5tQVryfDuEavPyPmDjLfx2xFeZA4i2v2/YYfD8k8JvsrCD0I3wDZlak836+fBgNYMMkL/uC7gFJS9gEuXXdIPR7cXN/c3pEzq4nt3HejjYn7OovoAkR3PI8Sugm0O/ei0t6sdI6+Gw+oBb8BXPtjkG8GAAA="
+    ## ~/.config/bash/40-cargo
     BASH_SETUP_FILE_40_CARGO="H4sIAMQh1WQAA9NTUFLx8Pd11ddLTixKz9dPzStT4gIA4otecxUAAAA="
 
-    BASH_SETUP_VERSION_CURR=
+    LogTrace "Creating directories: ${PATH_LOCAL_BIN}, ${BASH_SETUP_CONFIG_DIR}, ${BASH_SETUP_LOCAL_DIR}, ${BASH_SETUP_BACKUP}"
+    mkdir -p "${PATH_LOCAL_BIN}" "${BASH_SETUP_CONFIG_DIR}"  "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP}"
+
     if [ -e "${BASH_SETUP_VERSION_FILE}" ]
     then
         BASH_SETUP_VERSION_CURR=$(cat "${BASH_SETUP_VERSION_FILE}")
+        LogTrace "Found previous version install ${BASH_SETUP_VERSION_CURR}"
     fi
 
     if [ "${BASH_SETUP_VERSION_CURR}" != "${BASH_SETUP_VERISON}" ]
     then
-        mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}"
-        mkdir -p "${BASH_SETUP_BACKUP_LOCAL}"
-        mkdir -p "${BASH_SETUP_BACKUP_CONFIG}"
+        LogTrace "Installing new verison- Current version: ${BASH_SETUP_VERSION_CURR} is not matching target version ${BASH_SETUP_VERISON}"
+
+        LogTrace "Creting backup folders: ${BASH_SETUP_BACKUP_CURR_DIR}, ${BASH_SETUP_BACKUP_LOCAL}, ${BASH_SETUP_BACKUP_CONFIG}"
+        mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}" "${BASH_SETUP_BACKUP_LOCAL}" "${BASH_SETUP_BACKUP_CONFIG}"
+
         LogTrace "Backing up old version"
         cp  "${HOME}/.bashrc" "${BASH_SETUP_BACKUP_ROOT}"
         cp  -r "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP_LOCAL}"
         cp  -r "${BASH_SETUP_CONFIG_DIR}" "${BASH_SETUP_BACKUP_CONFIG}"
 
         LogTrace "Creating new config folder"
-        mkdir -p "${BASH_SETUP_BACKUP_CURR_DIR}"
         mkdir -p "${BASH_SETUP_CONFIG_DIR}"
 
         LogTrace "Creating file ${BASH_SETUP_CONFIG_DIR}"
+
+        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults: "
+        LogTrace "$(echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
+
+        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/11-paths: "
+        LogTrace "$(echo "${BASH_SETUP_FILE_11_PATHS}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_11_PATHS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
+
+        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/13-alias: "
+        LogTrace "$(echo "${BASH_SETUP_FILE_13_ALIAS}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_13_ALIAS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
+
+        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/15-colors: "
+        LogTrace "$(echo "${BASH_SETUP_FILE_15_COLORS}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_15_COLORS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
+
+        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/40-cargo: "
+        LogTrace "$(echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
 
         LogTrace "Overriding main .bashrc"
         (echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c) > "${HOME}/.bashrc"
-    fi
-    echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_VERSION_FILE}"
 
+        LogTrace "Overriding version fiel with ${BASH_SETUP_VERISON}"
+        echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_VERSION_FILE}"
+    else
+        LogTrace "Current version: ${BASH_SETUP_VERSION_CURR} is matching target version ${BASH_SETUP_VERISON}"
+    fi
 }
 
 CustomDisableESM()
 {
     if [ -e "/etc/apt/apt.conf.d/20apt-esm-hook.conf" ]
     then
+        LogTrace "Disabling ESM hook"
         PATH_DISABLED_APT_ESM="$HOME/.local/disabled-esm"
         mkdir -p "${PATH_DISABLED_APT_ESM}"
         ${SUDO} mv "/etc/apt/apt.conf.d/20apt-esm-hook.conf" "${PATH_DISABLED_APT_ESM}/"
@@ -250,20 +312,25 @@ CustomRust()
 # custom installs
 CustomNode()
 {
+    # Disable error handling to check if command exist
     set +e
     FNM=$(command -v fnm)
     set -e
     if [ "$(command -v cargo)" ]
     then
+        LogTrace "Rust wasnt detected - installing"
         CustomRust
     fi
 
     # need rust
     if [ -z "${FNM}" ]
     then
+        LogTrace "Installing fnm"
         cargo install fnm
+        LogTrace "Loading fnm shell env"
         # shellcheck disable=2016
         echo 'eval "$(fnm env --use-on-cd)"' > "${HOME}/.config/bash/41-node"
+        LogTrace "Installing latest lts node"
         fnm install --lts
     else
         fnm install --lts
@@ -272,12 +339,14 @@ CustomNode()
 
 CustomBashLSP()
 {
+    # Disable error handling to check if command exist
     set +e
     BASH_LSP=$(command -v bash-language-server)
     set -e
 
     if [ -n "$(command -v npm)" ]
     then
+        LogTrace "Node wasnt detected - installing"
         CustomNode
     fi
 
@@ -285,6 +354,7 @@ CustomBashLSP()
     then
         if [ -n "$(command -v "node")" ]
         then
+            LogTrace "Installing bash-language-server using npm"
             npm i -g bash-language-server
         fi
     fi
@@ -292,7 +362,10 @@ CustomBashLSP()
 
 CustomGo()
 {
+    GO_VERSION_CURR=
+    GO_VERSION_TEMPLATE=
     INSTALL_GO=
+    # Disable error handling to check if command exist
     set +e
     GO="$(command -v go)"
     set -e
@@ -316,15 +389,19 @@ CustomGo()
     fi
     if [ -n "${INSTALL_GO}" ]
     then
-        LogTrace "Installing go"
+        LogTrace "Installing Go version: ${GO_VERSION}"
+        LogTrace "Downloading ${GO_URL_FULL} to ${PATH_TEMP}/${GO_URL_FILE}"
         curl -L "${GO_URL_FULL}" -o "${PATH_TEMP}/${GO_URL_FILE}"
+        LogTrace "Deleting old Go folder"
         rm -rf "${PATH_LOCAL_BIN}/go"
+        LogTrace "extracting new Go folder"
         tar -C "${PATH_LOCAL_BIN}" -xzf "${PATH_TEMP}/${GO_URL_FILE}"
     fi
 }
 
 CustomTidal()
 {
+    # Disable error handling to check if command exist
     set +e
     TIDAL=$(command -v tidal-hifi)
     set -e
@@ -336,8 +413,10 @@ CustomTidal()
 
     if [ -z "${TIDAL}" ] && [ "${TIDAL_VERSION}" != "${TIDAL_VERSION_CURR}" ]
     then
-        LogTrace "Installing Tidal-hifi"
+        LogTrace "Installing Tidal-hifi version: ${TIDAL_VERSION}"
+        LogTrace "Downloading ${TIDAL_URL_FULL} to ${PATH_TEMP}/${TIDAL_URL_FILE}"
         curl -L "${TIDAL_URL_FULL}" -o "${PATH_TEMP}/${TIDAL_URL_FILE}"
+        LogTrace "Installing tidal deb package"
         sudo apt-get install -y "${PATH_TEMP}/${TIDAL_URL_FILE}"
     fi
 }
@@ -359,30 +438,34 @@ CustomLutris()
     fi
 
     LUTRIS_VERSION_TEMPLATE=lutris-${LUTRIS_VERSION}
-    LUTRIS_URL_PATH="https://github.com/lutris/lutris/releases/download/v0.5.13/"
-    LUTRIS_URL_FILE="lutris_0.5.13_all.deb"
+    LUTRIS_URL_PATH="https://github.com/lutris/lutris/releases/download/v${LUTRIS_VERSION}/"
+    LUTRIS_URL_FILE="lutris_${LUTRIS_VERSION}_all.deb"
     LUTRIS_URL_FULL="${LUTRIS_URL_PATH}${LUTRIS_URL_FILE}"
 
 
     if [ -z "${LUTRIS}" ] && [ "${LUTRIS_CURR_VERSION}" != "${LUTRIS_VERSION_TEMPLATE}" ]
     then
-        LogTrace "Installing Lutris"
+        LogTrace "Installing Lutris ${LUTRIS_VERSION}"
+        LogTrace "Downloading ${LUTRIS_URL_FULL} to ${PATH_TEMP}/${LUTRIS_URL_FILE}"
         curl -L "${LUTRIS_URL_FULL}" -o "${PATH_TEMP}/${LUTRIS_URL_FILE}"
+        LogTrace "Installing lutris deb package"
         sudo apt-get install -y "${PATH_TEMP}/${LUTRIS_URL_FILE}"
     fi
 }
 
 CustomTerraform()
 {
+    # Disable error handling to check if command exist
     set +e
     TERRAFORM=$(command -v terraform)
     set -e
     PATH_TERRAFORM="${PATH_LOCAL_BIN}"
     TERRAFORM_VERSION=1.5.5
+    TERRAFORM_VERSION_CURR=
     TERRAFORM_URL_PATH="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/"
     TERRAFORM_URL_FILE="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
     TERRAFORM_URL_FULL="${TERRAFORM_URL_PATH}${TERRAFORM_URL_FILE}"
-    TERRAFORM_VERSION_CURR=
+
     if [ -n "${TERRAFORM}" ]
     then
         TERRAFORM_VERSION_CURR=$(terraform --version)
@@ -394,25 +477,30 @@ CustomTerraform()
 
     if [ -z "${TERRAFORM}" ] && [ "${TERRAFORM_VERSION_CURR}" != "${TERRAFORM_VERSION_TEMPLATE}"  ]
     then
-        set -x
         LogTrace "Installing Terraform"
+        LogTrace "Downloading ${TERRAFORM_URL_FULL} to ${PATH_TEMP}/${TERRAFORM_URL_FILE}"
         curl -L "${TERRAFORM_URL_FULL}" -o "${PATH_TEMP}/${TERRAFORM_URL_FILE}"
+        LogTrace "Removing old terraform package"
         rm  -f "${PATH_LOCAL_BIN}/terraform"
         PREV_FOLDER="${PWD}"
-        ls "${PATH_TEMP}"
-        cd "${PATH_TEMP}" || (echo "${PATH_TEMP} doesnt exist" && exit 1)
+        cd "${PATH_TEMP}" || (LogError "${PATH_TEMP} doesnt exist" && exit 1)
+        LogTrace "Extracting Terraform version ${TERRAFORM_VERSION}"
         unzip -qq "${TERRAFORM_URL_FILE}"
 
+        LogTrace "Moving terraform binary"
         mv terraform "${PATH_TERRAFORM}/terraform"
-        cd "${PREV_FOLDER}" || (echo "${PREV_FOLDER} doesnt exist" && exit 1)
+        LogTrace "Backing down"
+        cd "${PREV_FOLDER}" || (LogError "${PREV_FOLDER} doesnt exist" && exit 1)
     fi
 }
 
 CustomAWS()
 {
+    # Disable error handling to check if command exist
     set +e
     AWSCLI=$(command -v aws)
     set -e
+
     # shellcheck disable=SC2034
     PATH_AWSCLI="${PATH_LOCAL_BIN}"
     AWSCLI_URL_PATH="https://awscli.amazonaws.com/"
@@ -421,12 +509,18 @@ CustomAWS()
     if [ -z "${AWSCLI}" ]
     then
         LogTrace "Installing AWS cli"
+
+        LogTrace "Downloading ${AWSCLI_URL_FULL} to ${PATH_TEMP}/${AWSCLI_URL_FILE}"
         curl -L "${AWSCLI_URL_FULL}" -o "${PATH_TEMP}/${AWSCLI_URL_FILE}"
         PREV_FOLDER="${PWD}"
-        cd "${PATH_TEMP}" || (echo "${PATH_TEMP} doesnt exist" && exit 1)
+        LogTrace "Changing to folder: ${PATH_TEMP}"
+        cd "${PATH_TEMP}" || (LogError "${PATH_TEMP} doesnt exist" && exit 1)
+        LogTrace "Extracting ${AWSCLI_URL_FILE}"
         unzip -qq "${AWSCLI_URL_FILE}"
+        LogTrace "Installing aws"
         "${SUDO}" ./aws/install
-        cd "${PREV_FOLDER}" || (echo "${PREV_FOLDER} doesnt exist" && exit 1)
+        LogTrace "Changing to folder: ${PREV_FOLDER}"
+        cd "${PREV_FOLDER}" || (LogError "${PREV_FOLDER} doesnt exist" && exit 1)
     fi
 }
 
