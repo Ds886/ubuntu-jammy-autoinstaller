@@ -25,6 +25,7 @@ fi
 
 # PATHS
 PATH_LOCAL_BIN="$HOME/.local/bin"
+PATH_LOCAL_REPO="$HOME/dev/oss"
 PATH_TEMP="$(mktemp --suffix "-install-system" -d)"
 PATH_FLATPAK="/var/lib/flatpak/app"
 PATH="${PATH}:${HOME}/.cargo/bin:${PATH_LOCAL_BIN}"
@@ -35,7 +36,7 @@ FLATPAK_DEPS=
 PPA=
 
 
-mkdir -p "${PATH_LOCAL_BIN}"
+mkdir -p "${PATH_LOCAL_BIN}" "${PATH_LOCAL_REPO}"
 # Prereq
 SUDO=$(command -v sudo)
 
@@ -524,6 +525,68 @@ CustomAWS()
     fi
 }
 
+CustomST()
+{
+    ST_PATH_REPO=${PATH_LOCAL_REPO}/st
+    ST_GIT="https://github.com/LukeSmithxyz/st.git"
+    ST_GIT_STATUS=
+
+    LogTrace "WARNING: Cleaning system deps"
+    SYSTEM_DEPS=
+    
+    if (command -v git > /dev/null 2>&1)
+    then
+        LogError "git not found"
+        exit 1
+    fi
+
+    if (command -v clang > /dev/null 2>&1)
+    then
+        LogError "no clang"
+        exit 1
+    fi
+
+    if [ ! -e "/usr/include/X11/Xatom.h" ]
+    then
+        AddAptDep "x11proto-dev"
+    fi
+
+    if [ ! -e "/usr/include/X11/Xlib.h" ]
+    then
+        AddAptDep "libx11-dev"
+    fi
+
+    if [ ! -e "/usr/include/X11/Xft/Xft.h" ]
+    then
+        AddAptDep "libxft-dev"
+    fi
+
+    if [ ! -e "/usr/include/harfbuzz/hb.h" ]
+    then
+        AddAptDep "libharfbuzz-dev"
+    fi
+
+    if [ ! -e "$ST_PATH_REPO" ]
+    then
+        LogTrace "Ensuring folder"
+        mkdir -p "$PATH_LOCAL_REPO"
+        git clone "$ST_GIT" "${ST_PATH_REPO}"
+    fi
+
+    PREV_FOLDER="${PWD}"
+    cd "${ST_PATH_REPO}" || (LogError "Couldn't enter ${ST_PATH_REPO}" && exit 1)
+    ST_GIT_STATUS=$(git pull)
+
+    if [ "$ST_GIT_STATUS" != "Already up to date." ]
+    then
+        make
+        ${SUDO} make install
+    fi
+
+    cd "${PREV_FOLDER}"
+}
+
+
 CustomDisableESM
 setBash
 
@@ -551,6 +614,8 @@ AddAptDep "virt-manager" " virt-manager qemu-system-data
         qemu-system-x86-microvm "
 AddAptDep "curl"
 AddAptDep "unzip"
+AddAptDep "addads" "python3.10-venv"
+AddAptDep "tree"
 
 # Multimedia
 AddFlatpakDep "com.plexamp.Plexamp"
