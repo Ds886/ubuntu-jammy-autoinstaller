@@ -573,6 +573,11 @@ CustomST()
         AddAptDep "libharfbuzz-dev"
     fi
 
+    if [ -n "$SYSTEM_DEPS" ]
+    then
+        TriggerAPT
+    fi
+
     if [ ! -e "$ST_PATH_REPO" ]
     then
         LogTrace "Ensuring folder"
