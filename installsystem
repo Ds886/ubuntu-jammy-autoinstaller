@@ -317,7 +317,7 @@ CustomNode()
     set +e
     FNM=$(command -v fnm)
     set -e
-    if [ "$(command -v cargo)" ]
+    if [ -z "$(command -v cargo)" ]
     then
         LogTrace "Rust wasnt detected - installing"
         CustomRust
@@ -365,7 +365,7 @@ CustomGo()
 {
     GO_VERSION_CURR=
     GO_VERSION_TEMPLATE=
-    INSTALL_GO=
+    INSTALL_GO="false"
     # Disable error handling to check if command exist
     set +e
     GO="$(command -v go)"
@@ -374,11 +374,14 @@ CustomGo()
     GO_URL_PATH="https://go.dev/dl/"
     GO_URL_FILE="go${GO_VERSION}.linux-amd64.tar.gz"
     GO_URL_FULL="${GO_URL_PATH}${GO_URL_FILE}"
+
+
     if [ -n "${GO}" ]
     then
         GO_VERSION_CURR=$(go version)
-        GO_VERSION_TEMPLATE="go version go${GO_VERSION_CURR} linux/amd64"
+        GO_VERSION_TEMPLATE="go version go${GO_VERSION} linux/amd64"
     fi
+
     if [ -z "${GO}" ]
     then
         INSTALL_GO="true"
@@ -388,7 +391,8 @@ CustomGo()
             INSTALL_GO="true"
          fi
     fi
-    if [ -n "${INSTALL_GO}" ]
+
+    if [ "${INSTALL_GO}" = "true" ]
     then
         LogTrace "Installing Go version: ${GO_VERSION}"
         LogTrace "Downloading ${GO_URL_FULL} to ${PATH_TEMP}/${GO_URL_FILE}"
@@ -530,17 +534,20 @@ CustomST()
     ST_PATH_REPO=${PATH_LOCAL_REPO}/st
     ST_GIT="https://github.com/LukeSmithxyz/st.git"
     ST_GIT_STATUS=
+    ST_GIT_CLONED=
+    GIT=$(command -v git)
+    CLANG=$(command -v clang)
 
     LogTrace "WARNING: Cleaning system deps"
     SYSTEM_DEPS=
     
-    if (command -v git > /dev/null 2>&1)
+    if [ -z "${GIT}" ]
     then
         LogError "git not found"
         exit 1
     fi
 
-    if (command -v clang > /dev/null 2>&1)
+    if [ -z "${CLANG}" ]
     then
         LogError "no clang"
         exit 1
@@ -571,15 +578,16 @@ CustomST()
         LogTrace "Ensuring folder"
         mkdir -p "$PATH_LOCAL_REPO"
         git clone "$ST_GIT" "${ST_PATH_REPO}"
+        ST_GIT_CLONED="true"
     fi
 
     PREV_FOLDER="${PWD}"
     cd "${ST_PATH_REPO}" || (LogError "Couldn't enter ${ST_PATH_REPO}" && exit 1)
     ST_GIT_STATUS=$(git pull)
 
-    if [ "$ST_GIT_STATUS" != "Already up to date." ]
+    if [ "$ST_GIT_STATUS" != "Already up to date." ] || [ -n "$ST_GIT_CLONED" ]
     then
-        make
+        CC=clang make
         ${SUDO} make install
     fi
 
@@ -667,3 +675,6 @@ CustomLutris
 
 ## Multimedia
 CustomTidal
+
+## System
+CustomST
