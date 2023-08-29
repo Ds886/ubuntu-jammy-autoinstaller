@@ -599,6 +599,101 @@ CustomST()
     cd "${PREV_FOLDER}"
 }
 
+CustomMupdf()
+{
+    # seems to not worth it
+    MUPDF_VERSION=1.23.0
+    MUPDF_PATH_REPO=${PATH_LOCAL_REPO}/mupdf-${MUPDF_VERSION}-source
+    MUPDF_URL="https://mupdf.com/downloads/archive/mupdf-${MUPDF_VERSION}-source.tar.gz"
+    CLANG=$(command -v clang)
+    MAKEOPTS=""
+
+    LogTrace "WARNING: Cleaning system deps"
+    SYSTEM_DEPS=
+
+    if [ ! -e "/usr/include/harfbuzz/hb.h" ]
+    then
+        AddAptDep "libharfbuzz-dev"
+    fi
+
+    if [ ! -e "/usr/include/freetype2" ]
+    then
+        AddAptDep "libfreetype-dev"
+    fi
+
+    if [ ! -e "/usr/share/doc/mesa-common-dev/" ]
+    then
+        AddAptDep "mesa-common-dev"
+    fi
+
+    if [ ! -e "/usr/include/GL/gl.h" ]
+    then
+        AddAptDep libgl-dev
+    fi
+
+    if [ ! -e "/usr/lib/x86_64-linux-gnu/libGLdispatch.so" ]
+    then
+        AddAptDep "libglvnd-dev"
+    fi
+
+    if [ ! -e "/usr/include/GL/glu.h" ]
+    then
+        AddAptDep "libglu1-mesa-dev"
+    fi
+
+    if [ ! -e "/usr/share/doc/xorg-dev/copyright" ]
+    then
+        AddAptDep xorg-dev
+    fi
+
+    if [ ! -e "/usr/share/doc/libxcursor-dev/copyright" ]
+    then
+        AddAptDep "libxcursor-dev"
+    fi
+
+    if [ ! -e "/usr/share/doc/libxrandr-dev/copyright" ]
+    then
+        AddAptDep "libxrandr-dev"
+    fi
+
+    if [ ! -e "/usr/share/doc/libxinerama-dev/copyright" ]
+    then
+        AddAptDep "libxinerama-dev"
+    fi
+
+    AddAptDep "extract"
+    AddAptDep "unzip"
+
+
+
+    if [ -n "$SYSTEM_DEPS" ]
+    then
+        TriggerAPT
+    fi
+    set -x
+    if [ ! -e "$MUPDF_PATH_REPO" ]
+    then
+        LogTrace "Ensuring folder"
+        mkdir -p "$PATH_LOCAL_REPO"
+        curl -Lo "${PATH_TEMP}/mupdf-${MUPDF_VERSION}-source.tar.gz" "${MUPDF_URL}"
+        PREV_FOLDER="${PWD}"
+        cd "${PATH_LOCAL_REPO}"
+        tar xf "${PATH_TEMP}/mupdf-${MUPDF_VERSION}-source.tar.gz"
+        cd "${MUPDF_PATH_REPO}" || (LogError "Couldn't enter ${MUPDF_PATH_REPO}" && exit 1)
+        if [ -e "'/usr/local/include/mupdf':" ]
+        then
+            LogTrace "Cleaning old installation"
+            sudo rm -r /usr/local/include/mupdf /usr/local/lib/libmupdf.so \
+                      /usr/local/bin/mupdf-gl /usr/local/bin/mupdf-x11 \
+                      /usr/local/bin/muraster  /usr/local/bin/mutool \
+                      /usr/local/share/man/man1/mupdf.1 \
+                      /usr/local/share/man/man1/mutool.1 /usr/local/share/doc/mupdf
+        fi
+        CC=clang make ${MAKEOPTS} -j
+        ${SUDO} make ${MAKEOPTS} install CC=clang
+        cd "${PREV_FOLDER}"
+    fi
+}
 
 CustomDisableESM
 setBash
@@ -647,6 +742,7 @@ AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library fr
 AddAptDep "keepassxc"
 AddAptDep "transmission-gtk"
 AddAptDep "ffmpeg"
+AddAptDep "chromium" "chromium-browser"
 
 # Games
 AddFlatpakDep "net.pcsx2.PCSX2"
