@@ -602,11 +602,17 @@ CustomST()
 CustomMupdf()
 {
     # seems to not worth it
+        # Debian/ubuntu doesn't ship a custom vendored lcms2 which disables ICC
+        # For refence see: https://groups.google.com/g/linux.debian.bugs.dist/c/XMk838qMsjA?pli=1
+
+    # It is not possible to build with system dependnecies in the build system natively but it produce a static binary(libc breakage still possible)
     MUPDF_VERSION=1.23.0
     MUPDF_PATH_REPO=${PATH_LOCAL_REPO}/mupdf-${MUPDF_VERSION}-source
     MUPDF_URL="https://mupdf.com/downloads/archive/mupdf-${MUPDF_VERSION}-source.tar.gz"
     CLANG=$(command -v clang)
     MAKEOPTS=""
+    # shared binary seems to lead to broken linkage
+    # MAKEOPTS="shared=yes"
 
     LogTrace "WARNING: Cleaning system deps"
     SYSTEM_DEPS=
@@ -680,16 +686,22 @@ CustomMupdf()
         cd "${PATH_LOCAL_REPO}"
         tar xf "${PATH_TEMP}/mupdf-${MUPDF_VERSION}-source.tar.gz"
         cd "${MUPDF_PATH_REPO}" || (LogError "Couldn't enter ${MUPDF_PATH_REPO}" && exit 1)
+
         if [ -e "'/usr/local/include/mupdf':" ]
         then
+            # Potential breakage between versions
             LogTrace "Cleaning old installation"
-            sudo rm -r /usr/local/include/mupdf /usr/local/lib/libmupdf.so \
-                      /usr/local/bin/mupdf-gl /usr/local/bin/mupdf-x11 \
-                      /usr/local/bin/muraster  /usr/local/bin/mutool \
-                      /usr/local/share/man/man1/mupdf.1 \
-                      /usr/local/share/man/man1/mutool.1 /usr/local/share/doc/mupdf
+            sudo rm -r /usr/local/include/mupdf /usr/local/share/doc/mupdf
+            sudo rm    /usr/local/lib/libmupdf.so \
+                       /usr/local/bin/mupdf-gl /usr/local/bin/mupdf-x11 \
+                       /usr/local/bin/muraster  /usr/local/bin/mutool \
+                       /usr/local/share/man/man1/mupdf.1 \
+                       /usr/local/share/man/man1/mutool.1
         fi
+
+        # shellcheck disable=2086
         CC=clang make ${MAKEOPTS} -j
+        # shellcheck disable=2086
         ${SUDO} make ${MAKEOPTS} install CC=clang
         cd "${PREV_FOLDER}"
     fi
