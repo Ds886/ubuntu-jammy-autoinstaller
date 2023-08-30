@@ -284,6 +284,75 @@ CustomDisableESM()
     fi
 }
 
+CustomPC98Font()
+{
+    RETROFONT_PATH_BASE="$HOME/.local/share/retrofont"
+    RETROFONT_PATH_VERSION="${RETROFONT_PATH_BASE}/version"
+
+    RETROFONT_PATH_FONTLOC_BASE="${HOME}/.local/share/fonts"
+    RETROFONT_PATH_FONTLOC_TTF="${RETROFONT_PATH_FONTLOC_BASE}/ttf"
+
+    RETROFONT_PATH_TEMP_BASE="${PATH_TEMP}/rertofont"
+    RETROFONT_PATH_TEMP_ZIP="${RETROFONT_PATH_TEMP_BASE}/retrofont.zip"
+    RETROFONT_PATH_TEMP_EXTRACT="${RETROFONT_PATH_TEMP_BASE}/fonts"
+    RETROFONT_TARGETS="Px437_DOS-V_re_JPN24.ttf Px437_DOS-V_re_JPN30.ttf"
+
+    set -x
+    RETROFONT_VERSION=2.2
+    RETROFONT_VERSION_CURR=
+    if [ -e "$RETROFONT_PATH_VERSION" ]
+    then
+        RETROFONT_VERSION_CURR=$(cat "${RETROFONT_PATH_VERSION}")
+        LogTrace "RetroFont - Got current version ${RETROFONT_VERSION_CURR}"
+    fi
+
+    RETROFONT_URL="https://int10h.org/oldschool-pc-fonts/download/oldschool_pc_font_pack_v${RETROFONT_VERSION}_FULL.zip"
+
+    if [ "${RETROFONT_VERSION}" != "${RETROFONT_VERSION_CURR}" ]
+    then
+        LogTrace "RetroFont - Ensure folder ${RETROFONT_PATH_TEMP_BASE}"
+        mkdir -p "${RETROFONT_PATH_TEMP_BASE}"
+
+        LogTrace "RetroFont - Downloading fonts from ${RETROFONT_URL} to ${RETROFONT_PATH_TEMP_ZIP}"
+        curl -Lo "${RETROFONT_PATH_TEMP_ZIP}" "${RETROFONT_URL}"
+        PREV_FOLDER="${PWD}"
+
+        LogTrace "RetroFont - Ensuring folder ${RETROFONT_PATH_TEMP_EXTRACT}"
+        mkdir -p "${RETROFONT_PATH_TEMP_EXTRACT}"
+        LogTrace "RetroFont - Chnaging directory to ${RETROFONT_PATH_TEMP_EXTRACT}"
+        cd "${RETROFONT_PATH_TEMP_EXTRACT}" || (LogError "Failed to enter ${RETROFONT_PATH_TEMP_EXTRACT}" && exit 1)
+        LogTrace "RetroFont - Extractint ${RETROFONT_PATH_TEMP_ZIP}"
+        unzip -qq "${RETROFONT_PATH_TEMP_ZIP}"
+
+        LogTrace "RetroFont - Ensuring font folder \"${RETROFONT_PATH_FONTLOC_TTF}\""
+        mkdir -p "${RETROFONT_PATH_FONTLOC_TTF}"
+
+        # It doesn't like the spaces in the folder
+        # shellcheck disable=SC2086
+        cd ${RETROFONT_PATH_TEMP_EXTRACT}/ttf\ -\ Px\ \(pixel\ outline\) || (LogError "Failed to enter ${RETROFONT_PATH_TEMP_EXTRACT}/ttf\ -\ Px\ \(pixel\ outline\)" && exit 1)
+        # shellcheck disable=SC2086
+        set -- ${RETROFONT_TARGETS}
+        for RETROFONT_CURR_FONT
+        do
+            LogTrace "RetroFont - Importing font ${RETROFONT_CURR_FONT}"
+            cp "${RETROFONT_CURR_FONT}" "${RETROFONT_PATH_FONTLOC_TTF}"
+        done
+
+        cd "${PREV_FOLDER}" || (LogError "Failed to enter ${PREV_FOLDER}" && exit 1)
+
+        LogTrace "Updating Fonts"
+        fc-cache -rv
+
+        if [ ! -e "$RETROFONT_PATH_BASE" ]
+        then
+            LogTrace "Bumping version file to: \"${RETROFONT_VERSION}\""
+            mkdir -p "${RETROFONT_PATH_BASE}"
+            echo "${RETROFONT_VERSION}" > "${RETROFONT_PATH_VERSION}"
+        fi
+    fi
+    set +x
+}
+
 CustomRust()
 {
     set +e
@@ -708,6 +777,7 @@ CustomMupdf()
 }
 
 CustomDisableESM
+CustomPC98Font
 setBash
 
 
