@@ -347,10 +347,16 @@ CustomPC98Font()
         then
             LogTrace "Bumping version file to: \"${RETROFONT_VERSION}\""
             mkdir -p "${RETROFONT_PATH_BASE}"
-            echo "${RETROFONT_VERSION}" > "${RETROFONT_PATH_VERSION}"
+            echo "${RETROFONT_VERSION}" > "${RETROFONT_PATH_VERSION}" 
         fi
     fi
     set +x
+}
+
+Cleanup()
+{
+    LogTrace "Cleaning up tmp"
+    rm -r "${PATH_TEMP}"
 }
 
 CustomRust()
@@ -863,3 +869,6 @@ CustomTidal
 CustomST
 # Seems to not worth it kept due to effort
 # CustomMupdf
+
+
+Cleanup
