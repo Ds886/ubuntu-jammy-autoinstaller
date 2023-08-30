@@ -10,6 +10,7 @@ run the command
 
 # What included
 1. A setup for bashconfig  with smaller files in .config
+1. Installation of [DOS/V](https://int10h.org/oldschool-pc-fonts/fontlist/font?dos-v_re_jpn30) fonts and Xresources to load it
 1. Simplified abstraction for adding packages in snap,flatpak,apt
 1. Programming
   1. podman
@@ -22,6 +23,7 @@ run the command
   1. Node (Custom)
   1. inform6 toolchain - Text adventure programming
   1. clangd - C language server
+  1. Ada
   1. Bash language server (Custom)
   1. shellcheck Bash Language server
   1. nasm - disasm
@@ -32,10 +34,12 @@ run the command
   1. Howdy
   1. sshd - SSH server
   1. xclip - Copy paste utility
-  1. mupdf - PDF Reader
+  1. mupdf - PDF Reader(also custom build script)
   1. curl - CLI downloading
   1. unzip - Unzipper
   1. keepassxc - Password manager
+  1. Chromium
+  1. tree
 1. Multimedia
   1. Tidal (Custom)
   1. mpv - Media player
