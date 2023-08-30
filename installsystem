@@ -190,7 +190,7 @@ TriggerSnap()
 #  Versioning                            - ~/.local/opt/bash/share/version
 #  Backups of older versions             - ~/.local/opt/bash/bkupbash
 setBash() {
-    BASH_SETUP_VERISON=1.2
+    BASH_SETUP_VERISON=1.3
     BASH_SETUP_VERSION_CURR=
 
     BASH_SETUP_CONFIG_DIR="${HOME}/.config/bash"
@@ -216,6 +216,9 @@ setBash() {
     BASH_SETUP_FILE_15_COLORS="H4sIABkd1WQAA5VUWW/aQBB+jn/FyKAAKYQjh1ojV5FQVEVKlSqp1IeA0GKPYytml+7BodL+9s7ukgRCWrXIMuuZb2a+ubYCCjUwyBhPVjCTYjrTUOeCtxJRCtkEw0tUChYIj1ws7H+4YFyH4PSNIGGKRNWvl7efQyh4APRbapRT72B91OqdnXusNxn7IPEKVb8foGJJEFQoTCKmU+QaMiGJj4NiumHUhCIDnSNYxwVnJeRMOUHCZmxSlIVe9UEbyTElZyLLYLKCFDNmSg1aABca0kJpyRLt7IxCGblTJhKjiDkFffa+KHgqFuRJ5cKUKUwQBHdoYfTMaIoAli/jqWo65xu1pxtUKIkEx6/zDQJK4x5anAq2jwhh1LdOfA09cglto2R7UvC2izuCw0NwJ2oby6ALHw/bKc7b3JTlxvqgAt+QCjRHX0VQZjYTUveBKWWmCIWuKUt/VhbUSUpW53CZTFnr9L01rl/d3bSvLget89Peh8Yx1K9Z8mgzVibJn5xBoQCXWuIUyxVIJrEJVA2HsU6og3YwFq58GklDXXiyJe4Z2RBbSZQZ98kcN4KDvYrZUmCp8JXKybMioMfXNKzuljIGst4p6Je7blyr/khxQlmPk1wKoaN39eqOoPFzeD/snJzcd7r9k950OBqai2H+JOuQINoCnFrAYls7rEItcHz/J6SNEZEja0wZGW53cjsf2J8WuzRXdimoEfRQEd3WuXV2m1LoEm3R7aRf5ELpKC3k3ro6o6O1XM71UeOZdEg54ajT/1fuQOTZcFQl29A5oc3euNvaceRsUr4aSjtXpXKjw0olgKUpjS5PV/RZEFcV7C0CpeFc7LZXo9LQkvCrffwCoGXBOe1zWK2/CFuTHVAjhPX6TVjD5+KIEMm4RkRb/lqLmdGi5tQVryfDuEavPyPmDjLfx2xFeZA4i2v2/YYfD8k8JvsrCD0I3wDZlak836+fBgNYMMkL/uC7gFJS9gEuXXdIPR7cXN/c3pEzq4nt3HejjYn7OovoAkR3PI8Sugm0O/ei0t6sdI6+Gw+oBb8BXPtjkG8GAAA="
     ## ~/.config/bash/40-cargo
     BASH_SETUP_FILE_40_CARGO="H4sIAMQh1WQAA9NTUFLx8Pd11ddLTixKz9dPzStT4gIA4otecxUAAAA="
+    ## ~/.XdefaultsA
+    BASH_SETUP_FILE_XDEFAULTS="H4sIAGSb72QAA02RQU+EMBCF7/yKIVzUxLXAFgqJJz150E003qd02N2IsCmQdf31tmw6eGvfvG/6ZhrH8GGxH09oqW8ucCPu09s6uttgdzpgDWKjZBTFMbzTBAiGWpy7Cdqhd9feXA/j8ZcAR9DUDWcPe7WG3c82L+H57f3hEyxt4GX3mguovfsxLVxXGE/UHLFbCEt7O8y9qQEgMdpUxjhdY/P1TxeFkKJ0ejPbcbBPQzfYevW7lrpzhDf4kvAQLKDDhAy6Yr0UFWLlQUsmlFMuU6tlq4JerVhRtUge21uiPhgyNjSVzqnkhiFIUqRYVakHL9S5bQVHzqQxRhIyGbIkmOqy2F5HnCnUt8wVmaRCM5cxp7Qulxe/cU/9xK0lo6pUuWoZDVkSyl2S5aOaC/KQBXM6w1avQ26Zy1Do1nPnw3HirOW61pwy4t9IJYMKG5VHf4mg1cKVAgAA"
+
 
     LogTrace "Creating directories: ${PATH_LOCAL_BIN}, ${BASH_SETUP_CONFIG_DIR}, ${BASH_SETUP_LOCAL_DIR}, ${BASH_SETUP_BACKUP}"
     mkdir -p "${PATH_LOCAL_BIN}" "${BASH_SETUP_CONFIG_DIR}"  "${BASH_SETUP_LOCAL_DIR}" "${BASH_SETUP_BACKUP}"
@@ -264,7 +267,12 @@ setBash() {
         (echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
 
         LogTrace "Overriding main .bashrc"
+        LogTrace "$(echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c)"
         (echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c) > "${HOME}/.bashrc"
+
+        LogTrace "Overriding .Xdefaults"
+        LogTrace "$(echo "${BASH_SETUP_FILE_XDEFAULTS}"|base64 -d|gunzip -c)"
+        (echo "${BASH_SETUP_FILE_XDEFAULTS}"|base64 -d|gunzip -c) > "${HOME}/.Xdefaults"
 
         LogTrace "Overriding version fiel with ${BASH_SETUP_VERISON}"
         echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_VERSION_FILE}"
