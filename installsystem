@@ -297,7 +297,6 @@ CustomPC98Font()
     RETROFONT_PATH_TEMP_EXTRACT="${RETROFONT_PATH_TEMP_BASE}/fonts"
     RETROFONT_TARGETS="Px437_DOS-V_re_JPN24.ttf Px437_DOS-V_re_JPN30.ttf"
 
-    set -x
     RETROFONT_VERSION=2.2
     RETROFONT_VERSION_CURR=
     if [ -e "$RETROFONT_PATH_VERSION" ]
@@ -350,7 +349,6 @@ CustomPC98Font()
             echo "${RETROFONT_VERSION}" > "${RETROFONT_PATH_VERSION}" 
         fi
     fi
-    set +x
 }
 
 Cleanup()
