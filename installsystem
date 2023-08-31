@@ -169,7 +169,7 @@ TriggerFlatPak()
     for item
     do
         LogTrace "  Trigger installing flathub: ${item}"
-        flatpak install -y flathub "$item"
+        sudo flatpak install -y flathub "$item"
         shift
     done
 }
@@ -184,23 +184,82 @@ TriggerSnap()
     fi
 }
 
+
 # Creates a setup of bash config located in .config
 # Path:
 #  Configs location (loaded dynamically) - ~/.config/bash
 #  Versioning                            - ~/.local/opt/bash/share/version
 #  Backups of older versions             - ~/.local/opt/bash/bkupbash
-setBash() {
-    BASH_SETUP_VERISON=1.3
-    BASH_SETUP_VERSION_CURR=
+OverrideFileInline()
+{
+    # Paramaters
+    OVERRIDE_FILE_INLINE_OPT_CONTENT="${1}"
+    OVERRIDE_FILE_INLINE_OPT_TARGET="${2}"
+    set +u
+    OVERRIDE_FILE_INLINE_OPT_DISABLE_GZIP="${3}"
+    set -u
 
+    OVERRIDE_FILE_INLINE_IS_GZIP=yes
+    OVERRIDE_FILE_INLINE_BASEDIR=$(dirname "${OVERRIDE_FILE_INLINE_OPT_TARGET}")
+
+    if [ -z "${OVERRIDE_FILE_INLINE_OPT_CONTENT}" ]
+    then
+        LogError "No content proviced"
+        exit 1
+    fi
+
+    if [ -z "${OVERRIDE_FILE_INLINE_OPT_TARGET}" ]
+    then
+        LogError "No Target path provided"
+        exit 1
+    fi
+
+    if [ -n "${OVERRIDE_FILE_INLINE_OPT_DISABLE_GZIP}" ]
+    then
+        OVERRIDE_FILE_INLINE_IS_GZIP=
+    fi
+
+
+
+    LogTrace "Ensuring folder ${OVERRIDE_FILE_INLINE_BASEDIR}"
+    mkdir -p "${OVERRIDE_FILE_INLINE_BASEDIR}"
+
+    LogTrace "Putting in ${OVERRIDE_FILE_INLINE_OPT_TARGET}: "
+    if [ -n "${OVERRIDE_FILE_INLINE_IS_GZIP}" ]
+    then
+        LogTrace "$(echo "${OVERRIDE_FILE_INLINE_OPT_CONTENT}"|base64 -d|gunzip -c)"
+        (echo "${OVERRIDE_FILE_INLINE_OPT_CONTENT}"|base64 -d|gunzip -c) > "${OVERRIDE_FILE_INLINE_OPT_TARGET}"
+    else
+        LogTrace "$(echo "${OVERRIDE_FILE_INLINE_OPT_CONTENT}"|base64 -d)"
+        (echo "${OVERRIDE_FILE_INLINE_OPT_CONTENT}"|base64 -d) > "${OVERRIDE_FILE_INLINE_OPT_TARGET}"
+    fi
+}
+
+SetBash() {
+    # Paths
+    ## Config path
     BASH_SETUP_CONFIG_DIR="${HOME}/.config/bash"
+    ## Share
     BASH_SETUP_LOCAL_DIR="${HOME}/.local/opt/bash/share"
-    BASH_SETUP_BACKUP="${HOME}/.local/opt/bash/bkupbash"
+
+    # Versioning
+    ## Target version
+    BASH_SETUP_VERISON=1.3
+    ## Current version(loaded dynamically)
+    BASH_SETUP_VERSION_CURR=
     BASH_SETUP_VERSION_FILE="${BASH_SETUP_LOCAL_DIR}/version"
 
+    # Backup mechanism
+    ## Backup path
+    BASH_SETUP_BACKUP="${HOME}/.local/opt/bash/bkupbash"
+    ## Backup currdir
     BASH_SETUP_BACKUP_CURR_DIR=${BASH_SETUP_BACKUP}/$(date "+%F-%T")
+    ## Targets
+    ### Root
     BASH_SETUP_BACKUP_ROOT=${BASH_SETUP_BACKUP_CURR_DIR}/.bashrc
+    ### local
     BASH_SETUP_BACKUP_LOCAL=${BASH_SETUP_BACKUP_CURR_DIR}/local
+    ### config folder
     BASH_SETUP_BACKUP_CONFIG=${BASH_SETUP_BACKUP_CURR_DIR}/config
 
     # Files (Addded with `gzip -c < file|base64 -w0`)
@@ -246,35 +305,15 @@ setBash() {
 
         LogTrace "Creating file ${BASH_SETUP_CONFIG_DIR}"
 
-        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults: "
-        LogTrace "$(echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
+        OverrideFileInline "${BASH_SETUP_FILE_10_UBUNTUDEFAULTS}" "${BASH_SETUP_CONFIG_DIR}/10-ubuntudefaults"
+        OverrideFileInline "${BASH_SETUP_FILE_11_PATHS}" "${BASH_SETUP_CONFIG_DIR}/11-paths"
+        OverrideFileInline "${BASH_SETUP_FILE_13_ALIAS}" "${BASH_SETUP_CONFIG_DIR}/13-alias"
+        OverrideFileInline "${BASH_SETUP_FILE_15_COLORS}" "${BASH_SETUP_CONFIG_DIR}/15-colors"
+        OverrideFileInline "${BASH_SETUP_FILE_40_CARGO}" "${BASH_SETUP_CONFIG_DIR}/40-cargo"
+        OverrideFileInline "${BASH_SETUP_FILE_ROOT}" "${HOME}/.bashrc"
+        OverrideFileInline "${BASH_SETUP_FILE_XDEFAULTS}" "${HOME}/.Xdefaults"
 
-        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/11-paths: "
-        LogTrace "$(echo "${BASH_SETUP_FILE_11_PATHS}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_11_PATHS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/11-paths"
-
-        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/13-alias: "
-        LogTrace "$(echo "${BASH_SETUP_FILE_13_ALIAS}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_13_ALIAS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/13-alias"
-
-        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/15-colors: "
-        LogTrace "$(echo "${BASH_SETUP_FILE_15_COLORS}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_15_COLORS}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/15-colors"
-
-        LogTrace "Putting in ${BASH_SETUP_CONFIG_DIR}/40-cargo: "
-        LogTrace "$(echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_40_CARGO}"|base64 -d|gunzip -c) > "${BASH_SETUP_CONFIG_DIR}/40-cargo"
-
-        LogTrace "Overriding main .bashrc"
-        LogTrace "$(echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_ROOT}"|base64 -d|gunzip -c) > "${HOME}/.bashrc"
-
-        LogTrace "Overriding .Xdefaults"
-        LogTrace "$(echo "${BASH_SETUP_FILE_XDEFAULTS}"|base64 -d|gunzip -c)"
-        (echo "${BASH_SETUP_FILE_XDEFAULTS}"|base64 -d|gunzip -c) > "${HOME}/.Xdefaults"
-
-        LogTrace "Overriding version fiel with ${BASH_SETUP_VERISON}"
+        LogTrace "Overriding version file with ${BASH_SETUP_VERISON}"
         echo "${BASH_SETUP_VERISON}" > "${BASH_SETUP_VERSION_FILE}"
     else
         LogTrace "Current version: ${BASH_SETUP_VERSION_CURR} is matching target version ${BASH_SETUP_VERISON}"
@@ -788,9 +827,6 @@ CustomMupdf()
     fi
 }
 
-CustomDisableESM
-CustomPC98Font
-setBash
 
 
 AddAptDep "unzip" "unzip"
@@ -800,6 +836,10 @@ if [ -n "$SYSTEM_DEPS" ]
 then
     TriggerAPT
 fi
+
+CustomDisableESM
+CustomPC98Font
+SetBash
 
 # System
 
