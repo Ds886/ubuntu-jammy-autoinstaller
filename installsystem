@@ -895,6 +895,8 @@ AddAptDep "unzip"
 AddAptDep "addads" "python3.10-venv"
 AddAptDep "tree"
 AddAptDep "ncdu"
+# apt search sway|grep \/ |grep -v -e'^ .*$'|cut -d/ -f1|tr \\n \
+AddAptDep "sway" "grimshot python3-i3ipc sway sway-backgrounds swaybg swayidle swayimg swaylock waybar wdisplays wofi"
 AddFlatpakDep "org.gnome.NetworkDisplays"
 
 # Multimedia
@@ -909,7 +911,7 @@ AddAptDep "clangd"
 AddAptDep "gnat" "gprbuild gnat"
 AddAptDep "shellcheck"
 AddAptDep "ndisasm" "nasm"
-AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library frotz"
+AddAptDep "inform6" "inform-docs inform-mode inform6-compiler inform6-library frotz sdlfrotz"
 #AddAptDep "pandoc" "texlive-full ttf-mscorefonts-installer culmus pandoc"
 
 # Utilities
